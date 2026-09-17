@@ -61,7 +61,6 @@ async def get_identity(request: Request, settings: Settings = Depends(get_settin
     )
     state = await asyncio.to_thread(sdk.authenticate_request, clerk_request, options)
     if not state.is_signed_in or not state.payload or not state.payload.get("sub"):
-        print("Clerk verification rejected request:", {"status": str(state.status), "reason": str(state.reason), "message": str(getattr(state, "message", ""))}, flush=True)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthorized")
     clerk_user_id = str(state.payload["sub"])
     try:

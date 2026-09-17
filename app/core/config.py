@@ -1,0 +1,64 @@
+import json
+from functools import lru_cache
+from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore", enable_decoding=False)
+
+    environment: str = "development"
+    database_url: str
+    clerk_secret_key: str = ""
+    clerk_jwt_key: str = ""
+    clerk_authorized_parties: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = ["http://localhost:3000"]
+    career_ops_code_root: Path = Path(__file__).resolve().parents[2]
+    career_ops_workspace_root: Path = Path(__file__).resolve().parents[2] / ".career-ops-data" / "users"
+    artifact_storage: str = "filesystem"
+    auth_test_mode: bool = False
+
+    @field_validator("database_url")
+    @classmethod
+    def async_database_url(cls, value: str) -> str:
+        if not value.startswith(("postgresql://", "postgresql+asyncpg://")):
+            return value
+        url = value.replace("postgresql://", "postgresql+asyncpg://", 1)
+        parsed = urlsplit(url)
+        query = [(key, item) for key, item in parse_qsl(parsed.query, keep_blank_values=True) if key not in {"sslmode", "channel_binding"}]
+        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, urlencode(query), parsed.fragment))
+
+    @field_validator("clerk_authorized_parties", "cors_origins", mode="before")
+    @classmethod
+    def split_csv(cls, value: object) -> object:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.startswith("["):
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, list):
+                        return parsed
+                except json.JSONDecodeError:
+                    pass
+            return [part.strip() for part in stripped.split(",") if part.strip()]
+        return value
+
+    @model_validator(mode="after")
+    def secure_auth_configuration(self) -> "Settings":
+        if self.environment == "production" and self.auth_test_mode:
+            raise ValueError("AUTH_TEST_MODE cannot be enabled in production")
+        if self.environment == "production" and not self.clerk_secret_key:
+            raise ValueError("CLERK_SECRET_KEY is required in production")
+        return self
+
+    @property
+    def production(self) -> bool:
+        return self.environment == "production"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

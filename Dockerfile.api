@@ -1,0 +1,16 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+
+WORKDIR /app
+COPY . .
+
+ENV CAREER_OPS_CODE_ROOT=/app \
+    CAREER_OPS_WORKSPACE_ROOT=/data/users
+
+RUN pip install --no-cache-dir .
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

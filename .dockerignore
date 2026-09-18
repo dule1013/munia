@@ -29,7 +29,6 @@ modes/_profile.md
 modes/_custom.md
 modes/_brief.md
 node_modules
-web
 *.db
 *.db-wal
 *.db-shm

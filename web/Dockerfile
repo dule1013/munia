@@ -4,7 +4,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 COPY web/package.json web/package-lock.json ./
-RUN npm ci --ignore-scripts
+RUN npm ci --include=dev --ignore-scripts
 COPY web/ .
 RUN npm run build
 

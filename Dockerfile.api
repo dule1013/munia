@@ -9,8 +9,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts --omit=dev
+COPY package.json ./
+RUN npm install --ignore-scripts --omit=dev --no-audit --no-fund
 COPY . .
 
 ENV CAREER_OPS_CODE_ROOT=/app \

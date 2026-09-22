@@ -1,13 +1,19 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { checkRequest, parseAllowedHosts } from "@/lib/origin-guard.mjs";
+import { isExemptFromPortalGating, isLegacyLocalOnlyApi } from "@/lib/portal-api-guard.mjs";
 import { portalMode } from "@/lib/portal-mode.mjs";
 
 const publicPaths = ["/sign-in", "/sign-up"];
-const portalApis = ["/api/backend", "/api/run", "/api/pipeline", "/api/status", "/api/whats-new", "/api/explore", "/api/explore/add", "/api/clis", "/api/version"];
 
 export const proxy = clerkMiddleware(async (auth, req) => {
   const pathname = req.nextUrl.pathname;
+  // See portal-api-guard.mjs: the Google OAuth callback is reached by a
+  // top-level cross-site navigation, not a same-origin fetch(), so it must
+  // bypass Clerk auth, the local-only-API gate, AND the origin/CSRF guard
+  // below — all three would otherwise (correctly, for every other /api
+  // route) refuse it.
+  if (isExemptFromPortalGating(pathname)) return NextResponse.next();
   let multiUser: boolean;
   try {
     multiUser = portalMode();
@@ -21,7 +27,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
   }
   const isPublic = publicPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
   if (!isPublic) await auth.protect();
-  if (pathname.startsWith("/api/") && !portalApis.includes(pathname) && !pathname.startsWith("/api/backend/")) {
+  if (isLegacyLocalOnlyApi(pathname)) {
     return NextResponse.json({ error: "This local-only endpoint is disabled in multi-user mode." }, { status: 410 });
   }
   if (pathname.startsWith("/api/")) {

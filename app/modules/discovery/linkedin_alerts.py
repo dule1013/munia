@@ -1,0 +1,153 @@
+"""Pure parsing/validation for LinkedIn Job Alert emails (Phase 5 Checkpoint C).
+
+No network I/O here — everything below takes already-fetched Gmail message
+data and returns normalized job candidates or nothing. This is deliberately
+adapted (not a straight port) from two existing career-ops building blocks:
+
+- career-ops-plugin-linkedin-alerts (registered in plugins-registry/, pinned
+  SHA de54949b) — its subject/body parsing (`parseSubject`, `extractJobUrls`)
+  is genuinely good and is ported here. Its `ingest()` hook was NOT reused as
+  a subprocess: it has no authenticity check on the sender at all, no
+  structured output the FastAPI app could consume without either forking the
+  CLI or writing Gmail credentials to a candidate's workspace .env — both
+  unacceptable for a server-hosted multi-user app. See the Checkpoint C
+  report for the full incompatibility writeup.
+- the bundled plugins/gmail/_helpers.mjs `isAuthenticEmail` DMARC check,
+  ported as `is_authentic_sender` below — the linkedin-alerts plugin has
+  nothing equivalent, so this closes a real spoofing gap rather than just
+  matching prior behavior.
+
+Untrusted-content discipline (career-ops AGENTS.md "Untrusted External
+Content"): an email body/subject is DATA. Nothing here executes, evaluates,
+or is influenced by instruction-like text inside a message — we only ever
+regex-extract a URL/company/title substring.
+"""
+
+import base64
+import re
+from dataclasses import dataclass
+
+LINKEDIN_ALERT_SENDER = "jobalerts-noreply@linkedin.com"
+
+_JOB_URL_RE = re.compile(r"https://(?:www\.)?linkedin\.com/(?:comm/)?[^\s\"<>\]]+")
+_JOB_ID_RE = re.compile(r"/jobs/view/(\d{7,})|[?&](?:currentJobId|jobId)=(\d{7,})")
+
+
+@dataclass(frozen=True)
+class LinkedInJobCandidate:
+    job_id: str
+    url: str
+    title: str
+    company: str
+    location: str = ""
+
+
+def is_authentic_sender(headers: list[dict], *, expected_sender: str = LINKEDIN_ALERT_SENDER) -> bool:
+    """Fail-closed sender authenticity check.
+
+    Two independent signals must both hold:
+    1. DMARC alignment (`Authentication-Results` reports `dmarc=pass`) — the
+       same check the bundled gmail plugin uses, ported here because the
+       registered linkedin-alerts plugin has no equivalent.
+    2. The `From` header's address domain is exactly `linkedin.com` (not a
+       lookalike/subdomain trick) — defense in depth independent of DMARC,
+       since DMARC only proves alignment with *some* domain the header claims.
+    """
+    if not isinstance(headers, list):
+        return False
+    dmarc_pass = False
+    from_domain = ""
+    for header in headers:
+        name = str(header.get("name", "")).lower()
+        value = str(header.get("value", ""))
+        if name == "authentication-results" and re.search(r"dmarc=pass", value, re.IGNORECASE):
+            dmarc_pass = True
+        elif name == "from":
+            match = re.search(r"@([\w.-]+)", value)
+            if match:
+                from_domain = match.group(1).lower()
+    expected_domain = expected_sender.rsplit("@", 1)[-1].lower()
+    return dmarc_pass and from_domain == expected_domain
+
+
+def decode_message_body(payload: dict | None) -> str:
+    """Recursively base64url-decode a Gmail message payload's body parts."""
+    if not payload:
+        return ""
+    body = ""
+    data = (payload.get("body") or {}).get("data")
+    if data:
+        padded = data.replace("-", "+").replace("_", "/")
+        padded += "=" * (-len(padded) % 4)
+        try:
+            body += base64.b64decode(padded).decode("utf-8", errors="replace")
+        except Exception:
+            pass
+    for part in payload.get("parts") or []:
+        body += decode_message_body(part)
+    return body
+
+
+def get_header(message: dict, name: str) -> str:
+    headers = (message.get("payload") or {}).get("headers") or []
+    for header in headers:
+        if str(header.get("name", "")).lower() == name.lower():
+            return str(header.get("value", ""))
+    return ""
+
+
+def parse_alert_subject(subject: str) -> tuple[str, str]:
+    """Returns (company, title). Ported from the linkedin-alerts plugin's
+    `parseSubject` — LinkedIn's own alert phrasing, not something we control
+    or can improve by guessing:
+      "Acme Corp is hiring a Software Engineer"
+      "3 new HR Coordinator jobs for you"
+      "New jobs for you: HR Coordinator, People Operations"
+    """
+    if not subject:
+        return "", ""
+    match = re.match(r"^(.+?) is hiring (?:a |an )?(.+)$", subject, re.IGNORECASE)
+    if match:
+        return match.group(1).strip(), match.group(2).strip()
+    match = re.match(r"new (?:\w+ )?jobs? for you:?\s*(.+)$", subject, re.IGNORECASE)
+    if match:
+        return "", match.group(1).strip().split(",")[0].strip()
+    match = re.match(r"^\d+ new (.+?) jobs?", subject, re.IGNORECASE)
+    if match:
+        return "", match.group(1).strip()
+    return "", subject.strip()
+
+
+def extract_job_urls(body: str) -> list[tuple[str, str]]:
+    """Returns deduped [(job_id, normalized_url), ...] extracted from an
+    alert body. Handles direct links (`/jobs/view/123`), the `comm/` tracking
+    prefix, and `?currentJobId=`/`?jobId=` query forms — all normalized to
+    the stable `linkedin.com/jobs/view/{id}` form with no tracking params."""
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for match in _JOB_URL_RE.finditer(body or ""):
+        url = match.group(0).replace("&amp;", "&").split('"')[0]
+        id_match = _JOB_ID_RE.search(url)
+        if not id_match:
+            continue
+        job_id = id_match.group(1) or id_match.group(2)
+        clean_url = f"https://www.linkedin.com/jobs/view/{job_id}"
+        if clean_url in seen:
+            continue
+        seen.add(clean_url)
+        found.append((job_id, clean_url))
+    return found
+
+
+def parse_alert_message(message: dict) -> list[LinkedInJobCandidate]:
+    """The single entry point: a raw Gmail message dict in -> normalized job
+    candidates out, or [] when there isn't enough to safely build one (no
+    URLs, or a URL with no recognizable job id). Never fetches the LinkedIn
+    page itself — only what the alert email already contains."""
+    subject = get_header(message, "Subject")
+    company, title = parse_alert_subject(subject)
+    if not title:
+        return []
+    body = decode_message_body(message.get("payload"))
+    urls = extract_job_urls(body)
+    return [LinkedInJobCandidate(job_id=job_id, url=url, title=title, company=company or "(LinkedIn)") for job_id, url in urls]

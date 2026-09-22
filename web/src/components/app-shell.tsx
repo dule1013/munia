@@ -18,13 +18,14 @@ import { BetaBanner } from "@/components/beta/beta-banner";
 import { WorkerPills } from "@/components/jobs/worker-pills";
 import { UsageMeter } from "@/components/usage-meter";
 import { instrumentSerif } from "@/lib/fonts";
-import { NAV_ITEMS, isActivePath } from "@/lib/nav-items";
+import { navItemsForMode, isActivePath } from "@/lib/nav-items";
 import { usePortalMode } from "@/components/portal-mode-provider";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useUser();
   const portalEnabled = usePortalMode();
+  const navItems = navItemsForMode(portalEnabled);
   if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")) return children;
   return (
     <JobsProvider key={user?.id}>
@@ -41,7 +42,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </Link>
           <nav className="flex flex-col gap-1">
-            {NAV_ITEMS.map(({ href, label, icon: Icon, chip }) => {
+            {navItems.map(({ href, label, icon: Icon, chip }) => {
               const active = isActivePath(href, pathname);
               return (
                 <Link
@@ -69,7 +70,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <WorkerPills />
 
           <div className="mt-auto space-y-3 pt-4">
-            <UsageMeter />
+            {!portalEnabled && <UsageMeter />}
             <div className="flex items-center justify-between px-1">
               <span className={`${instrumentSerif.className} text-sm text-faint`}>private portal · v0</span>
               <div className="flex items-center gap-2">

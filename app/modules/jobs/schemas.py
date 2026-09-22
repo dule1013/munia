@@ -34,3 +34,17 @@ class JobResponse(BaseModel):
     first_seen_at: datetime
     last_seen_at: datetime
     is_active: bool
+
+
+class JobDiscoveryResponse(BaseModel):
+    """Job provenance for display (Phase 5 Checkpoint E §7) — deliberately
+    excludes `user_id`/`external_id`/`source_metadata`: which candidate's
+    mailbox/watchlist found a shared Job is not something any candidate
+    should see about another (§10), so only the channel itself is exposed."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    source: str
+    method: str
+    first_seen_at: datetime
+    last_seen_at: datetime

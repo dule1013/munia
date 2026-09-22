@@ -22,12 +22,10 @@ export async function POST(req: Request) {
     } }), { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache, no-transform" } });
   }
   const request = { since_days: body.sinceDays || body.since || 7, ats: body.ats, limit_per_ats: body.limitPerAts || body.limit || 150 };
-  const result = await serverApi<{ offers?: unknown[]; companiesScanned?: number; unreachableBoards?: number }>("/discovery/reverse-ats", { method: "POST", body: JSON.stringify(request) });
-  const offers = Array.isArray(result.offers) ? result.offers : [];
-  const events = [
-    { kind: "start", ats: request.ats, sinceDays: request.since_days, limit: request.limit_per_ats, free: true },
-    { kind: "summary", companiesScanned: result.companiesScanned || 0, unreachable: result.unreachableBoards || 0, matches: offers.length },
-    { kind: "done", count: offers.length, offers, cost: { tokens: 0, usd: 0 } },
-  ];
-  return new Response(events.map((event) => JSON.stringify(event)).join("\n") + "\n", { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache, no-transform" } });
+  try {
+    const run = await serverApi<{ id: string }>("/discovery/runs", { method: "POST", body: JSON.stringify(request) });
+    return Response.json({ runId: run.id }, { status: 202 });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "discovery failed" }, { status: 502 });
+  }
 }

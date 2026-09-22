@@ -53,5 +53,5 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
     htmlPath: null,
     pdfPath: null,
   } : null;
-  return <ReportView id={id} app={app} report={detail.evaluation?.report_markdown || null} file={detail.evaluation ? `evaluation-${detail.evaluation.id}.md` : null} canDelete={false} pdfReadyFromIndex={detail.tailored_cv?.pdf_ready || false} tailoredCv={tailoredCv} />;
+  return <ReportView id={id} app={app} report={detail.evaluation?.report_markdown || null} file={detail.evaluation ? `evaluation-${detail.evaluation.id}.md` : null} canDelete={false} pdfReadyFromIndex={detail.tailored_cv?.pdf_ready || false} tailoredCv={tailoredCv} jobId={item.job_id} />;
 }

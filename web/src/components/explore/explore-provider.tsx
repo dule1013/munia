@@ -18,6 +18,7 @@ import {
   type ScanEvent,
 } from "@/lib/explore";
 import { makeAiStreamParser, type AiTraceChunk } from "@/lib/explore-ai";
+import { portalApi, type DiscoveryRun } from "@/lib/api-client";
 import { MAX_OFFER_LIMIT } from "@/lib/whats-new.mjs";
 import { isScannerMissing } from "@/lib/explore-error.mjs";
 
@@ -143,6 +144,9 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
   const [aiTrace, setAiTrace] = useState<AiTraceChunk[]>([]);
   const [aiCost, setAiCost] = useState<AiCost>({ searches: 0, candidates: 0, fetches: 0 });
   const runningRef = useRef(false);
+  // Generation counter for background-run polling: bump on every new scan/reset
+  // so a stale poll loop can never write state after being superseded.
+  const runTokenRef = useRef(0);
   const aiIntentRef = useRef(aiIntent);
   aiIntentRef.current = aiIntent;
   const filtersRef = useRef(filters);
@@ -159,10 +163,61 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
     setFiltersState(f);
   }, []);
 
+  // Portal mode runs discovery as a backend job: POST /api/explore returns 202
+  // {runId} immediately, then we poll /api/backend/discovery/runs/{id}. Returns
+  // null when the poll was superseded by a newer scan or a reset.
+  const pollDiscoveryRun = useCallback(async (runId: string, token: number): Promise<DiscoveryRun | null> => {
+    for (;;) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      if (runTokenRef.current !== token) return null;
+      const run = await portalApi.discoveryRun(runId);
+      if (runTokenRef.current !== token) return null;
+      if (run.status === "queued" || run.status === "running") {
+        setPhase("scanning");
+        setStatus("Scanning the ATS network in the background… you can leave this page");
+        continue;
+      }
+      return run;
+    }
+  }, []);
+
+  // Fold a finished run's --json result into the same accumulators/signals the
+  // ndjson "summary" event produces in the local (non-portal) path.
+  const applyDiscoveryResult = useCallback((run: DiscoveryRun, acc: DiscoveredOffer[]) => {
+    const outcome = { error: "", capHitSeen: false, datasetIssue: false, dropped: 0, scanned: 0 };
+    if (run.status === "failed") {
+      outcome.error = run.error || "Discovery failed.";
+      return outcome;
+    }
+    const result = run.result || {};
+    const list = Array.isArray(result.offers) ? result.offers : [];
+    acc.push(...list);
+    setOffers(list);
+    if (typeof result.companiesScanned === "number") {
+      outcome.scanned = result.companiesScanned;
+      setCompaniesScanned(result.companiesScanned);
+    }
+    if (typeof result.companiesAvailable === "number") setCompaniesAvailable(result.companiesAvailable);
+    if (result.capHit) {
+      outcome.capHitSeen = true;
+      setCapHit(true);
+    }
+    outcome.datasetIssue = result.datasetStatus ? Object.values(result.datasetStatus).some((s) => s !== "ok") : false;
+    if (typeof result.postingsDroppedNoDate === "number" && result.postingsDroppedNoDate > 0) {
+      outcome.dropped = result.postingsDroppedNoDate;
+      setDroppedNoDate(result.postingsDroppedNoDate);
+    }
+    const unreachable = typeof result.unreachableBoards === "number" ? result.unreachableBoards : 0;
+    if (unreachable > 0 || outcome.datasetIssue) setPartial(true);
+    setMatchCount(list.length);
+    return outcome;
+  }, []);
+
   const discover = useCallback(async () => {
     if (runningRef.current) return;
     const f = filtersRef.current;
     runningRef.current = true;
+    const token = ++runTokenRef.current;
     setPhase("casting");
     setOffers([]);
     setMatchCount(0);
@@ -203,6 +258,22 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
         const d = await r.json().catch(() => ({}));
         sawScannerMissing = isScannerMissing(d);
         sawError = d.error || (sawScannerMissing ? "The scanner isn't available." : `Discovery failed (${r.status}).`);
+      } else if (portalEnabled) {
+        const d = (await r.json().catch(() => ({}))) as { runId?: string; error?: string };
+        if (!d.runId) {
+          sawError = d.error || "Discovery failed to start.";
+        } else {
+          setPhase("scanning");
+          setStatus("Scanning the ATS network in the background… you can leave this page");
+          const run = await pollDiscoveryRun(d.runId, token);
+          if (run === null) return; // superseded by a newer scan or reset
+          const outcome = applyDiscoveryResult(run, acc);
+          sawError = outcome.error;
+          capHitAcc = outcome.capHitSeen;
+          datasetIssueAcc = outcome.datasetIssue;
+          droppedNoDateAcc = outcome.dropped;
+          companiesScannedAcc = outcome.scanned;
+        }
       } else if (!r.body) {
         sawError = "No response stream.";
       } else {
@@ -299,7 +370,7 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
     } else {
       setPhase(isBroadSearch(f) ? "empty-current" : "empty-loose");
     }
-  }, []);
+  }, [portalEnabled, pollDiscoveryRun, applyDiscoveryResult]);
 
   // Today's "See all N" link (#84) routes here with ?view=fresh instead of leaving
   // the user on a bare config form. Re-fetch the same free, zero-token /api/whats-new
@@ -391,6 +462,7 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
 
   const reset = useCallback(() => {
     runningRef.current = false;
+    runTokenRef.current += 1;
     setPhase("idle");
     setOffers([]);
     setSources({});
@@ -523,6 +595,7 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
   // clears + repopulates; an explicit reset() clears. Just stop any half-run.
   const setMode = useCallback((m: ExploreMode) => {
     runningRef.current = false;
+    runTokenRef.current += 1;
     setModeState(m);
   }, []);
 
@@ -558,6 +631,48 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
     const RUNNING = new Set<Phase>(["casting", "scanning", "revealing", "hunting"]);
     setPhase(RUNNING.has(snap.phase) ? (snap.offers.length ? "results" : "idle") : snap.phase);
   }, []);
+
+  // Portal mode: a discovery run survives page reloads on the backend. If the
+  // latest run is still queued/running, resume polling it so a reload doesn't
+  // lose the job. A finished run is NOT auto-loaded — the snapshot above covers that.
+  useEffect(() => {
+    if (!portalEnabled) return;
+    let cancelled = false;
+    const token = ++runTokenRef.current;
+    (async () => {
+      try {
+        const latest = await portalApi.latestDiscoveryRun();
+        if (cancelled || runTokenRef.current !== token) return;
+        if (latest.status !== "queued" && latest.status !== "running") return;
+        runningRef.current = true;
+        setPhase("scanning");
+        setStatus("Scanning the ATS network in the background… you can leave this page");
+        const run = await pollDiscoveryRun(latest.id, token);
+        if (cancelled || run === null || runTokenRef.current !== token) return;
+        const acc: DiscoveredOffer[] = [];
+        const outcome = applyDiscoveryResult(run, acc);
+        runningRef.current = false;
+        if (acc.length > 0) {
+          setMatchCount(acc.length);
+          setPhase("revealing");
+          setStatus(`${acc.length} fresh role${acc.length === 1 ? "" : "s"} found — free.`);
+          window.setTimeout(() => setPhase("results"), 850);
+        } else if (outcome.error) {
+          setError(outcome.error);
+          setPhase("failed");
+        } else if (outcome.capHitSeen || outcome.datasetIssue || outcome.dropped > 0 || outcome.scanned === 0) {
+          setPhase("degraded");
+        } else {
+          setPhase("empty-current");
+        }
+      } catch {
+        /* 404 (no runs) or network — nothing to resume */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [portalEnabled, pollDiscoveryRun, applyDiscoveryResult]);
 
   // Persist only SETTLED states (never mid-stream) so a reload restores a complete set.
   useEffect(() => {

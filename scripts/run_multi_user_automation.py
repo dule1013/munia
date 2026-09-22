@@ -8,12 +8,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import get_settings
 from app.core.database import SessionLocal
-from app.modules.automation.batch import direct_discovery, level3_all, reverse_discovery, triage_all
+from app.modules.automation.batch import direct_discovery, level3_all, linkedin_alert_sync_all, reverse_discovery, triage_all, watchlist_all
 
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["daily", "greenhouse", "lever", "ashby", "workday", "level3", "triage"])
+    parser.add_argument("mode", choices=["daily", "greenhouse", "lever", "ashby", "workday", "icims", "level3", "triage", "linkedin", "watchlist"])
     args = parser.parse_args()
     settings = get_settings()
     async with SessionLocal() as db:
@@ -23,8 +23,12 @@ async def main() -> None:
             result = await level3_all(db, settings)
         elif args.mode == "triage":
             result = await triage_all(db, settings)
+        elif args.mode == "linkedin":
+            result = await linkedin_alert_sync_all(db, settings)
+        elif args.mode == "watchlist":
+            result = await watchlist_all(db, settings)
         else:
-            limits = {"greenhouse": 1500, "lever": 1500, "ashby": 300, "workday": 200}
+            limits = {"greenhouse": 1500, "lever": 1500, "ashby": 300, "workday": 200, "icims": 300}
             result = await reverse_discovery(db, settings, args.mode, limits[args.mode])
     print(json.dumps(result))
 

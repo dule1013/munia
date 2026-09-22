@@ -14,6 +14,7 @@ import { DecisionCard } from "@/components/home/decision-card";
 import { QuickEvaluate } from "@/components/quick-evaluate";
 import { scoreNum } from "@/lib/format";
 import { pickAwaitingDecision } from "@/lib/home/awaiting.mjs";
+import { usePortalMode } from "@/components/portal-mode-provider";
 
 // The retention "Today": a dual-loop action queue (the maintainer's
 // "N new matches this week · M follow-ups due"). SUPPLY loop = fresh free-scan
@@ -35,21 +36,24 @@ export function TodayDashboard({
   const [fresh, setFresh] = useState<DiscoveredOffer[]>([]);
   const [freshCount, setFreshCount] = useState(0);
   const router = useRouter();
+  const portalEnabled = usePortalMode();
   const dateLabel = useMemo(() => new Date().toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }), []);
 
   const refetch = useCallback(() => {
-    fetch("/api/followups")
-      .then((r) => r.json())
-      .then((d) => {
-        // /api/followups already filters to urgency 'urgent'/'overdue' — due
-        // now, never 'waiting'/'cold' (#86). Both count toward "due"; a
-        // missing metadata.overdue must read as 0 due, never as "every entry
-        // is overdue" (the old `?? d.entries?.length` fallback).
-        setFollowups(Array.isArray(d.entries) ? d.entries : []);
-        setOverdue((d.metadata?.overdue ?? 0) + (d.metadata?.urgent ?? 0));
-        setNextUpcoming(d.nextUpcoming ?? null);
-      })
-      .catch(() => {});
+    if (!portalEnabled) {
+      fetch("/api/followups")
+        .then((r) => r.json())
+        .then((d) => {
+          // /api/followups already filters to urgency 'urgent'/'overdue' — due
+          // now, never 'waiting'/'cold' (#86). Both count toward "due"; a
+          // missing metadata.overdue must read as 0 due, never as "every entry
+          // is overdue" (the old `?? d.entries?.length` fallback).
+          setFollowups(Array.isArray(d.entries) ? d.entries : []);
+          setOverdue((d.metadata?.overdue ?? 0) + (d.metadata?.urgent ?? 0));
+          setNextUpcoming(d.nextUpcoming ?? null);
+        })
+        .catch(() => {});
+    }
     fetch("/api/whats-new")
       .then((r) => r.json())
       .then((d) => {
@@ -59,7 +63,7 @@ export function TodayDashboard({
         setFreshCount(Number.isFinite(count) ? Math.max(0, Math.trunc(count)) : offers.length);
       })
       .catch(() => {});
-  }, []);
+  }, [portalEnabled]);
 
   useEffect(() => {
     refetch();
@@ -80,7 +84,7 @@ export function TodayDashboard({
   const awaiting = useMemo(() => pickAwaitingDecision(applications, scoreNum), [applications]);
 
   const newThisWeek = freshCount;
-  const allClear = newThisWeek === 0 && overdue === 0 && awaiting.length === 0;
+  const allClear = newThisWeek === 0 && (portalEnabled || overdue === 0) && awaiting.length === 0;
   const inboxUrls = useMemo(() => new Set(inbox.map((j) => j.url)), [inbox]);
 
   return (
@@ -128,7 +132,7 @@ export function TodayDashboard({
       </section>
 
       {/* A. Follow-ups due (demand loop) */}
-      {followups.length > 0 ? (
+      {!portalEnabled && followups.length > 0 ? (
         <Section icon={Bell} title="Follow-ups due" hint="Keep your applications alive — a nudge beats silence">
           <div className="grid gap-2.5">
             {followups.map((f) => (

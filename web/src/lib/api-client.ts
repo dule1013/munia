@@ -5,6 +5,23 @@ export type CandidateJob = { id: string; user_id: string; job_id: string; eligib
 export type TailoredCv = { id: string; job_id: string; candidate_job_id: string; evaluation_id: string | null; company: string; title: string; source_html?: string | null; pdf_ready: boolean; manually_edited: boolean; validation_status: string; generated_at: string; modified_at: string };
 export type Evaluation = { id: string; candidate_job_id: string; report_number: number | null; score: number | null; recommendation: string | null; report_markdown: string; evaluated_at: string };
 export type PipelineDetail = { candidate_job: CandidateJob; evaluation: Evaluation | null; tailored_cv: { id: string; pdf_ready: boolean; manually_edited: boolean } | null };
+export type DiscoveryRunResult = { offers?: import("@/lib/explore").DiscoveredOffer[]; companiesScanned?: number; companiesAvailable?: number; capHit?: boolean; datasetStatus?: Record<string, string>; postingsDroppedNoDate?: number; unreachableBoards?: number; [key: string]: unknown };
+export type DiscoveryRun = { id: string; status: "queued" | "running" | "succeeded" | "failed"; request: Record<string, unknown>; result: DiscoveryRunResult | null; error: string | null; created_at: string; started_at: string | null; finished_at: string | null };
+
+// ── Discovery/Sources, Company Watchlist, LinkedIn (Phase 5 Checkpoint E) ──
+export type SourceMetrics = { discovered: number; eligible: number; worth_evaluating: number; applied: number };
+export type SourceEntry = { id: string; label: string; status?: string; last_sync_at?: string | null; last_error?: string | null; metrics?: SourceMetrics; metrics_available?: boolean };
+export type WatchlistCompanyBrief = { id: string; company_name: string; careers_url: string | null; provider: string | null; enabled: boolean; scan_status: string | null; last_scanned_at: string | null; last_scan_error: string | null };
+export type SourceGroup = { id: string; label: string; sources?: SourceEntry[]; summary?: { companies_watched: number; last_scan_at: string | null; errors: number }; metrics?: SourceMetrics; companies?: WatchlistCompanyBrief[] };
+export type SourcesOverview = { groups: SourceGroup[] };
+
+export type WatchedCompany = { id: string; company_name: string; careers_url: string | null; provider: string | null; provider_tenant_id: string | null; priority: number; enabled: boolean; last_scanned_at: string | null; scan_status: string | null; last_scan_error: string | null; created_at: string; updated_at: string };
+export type WatchedCompanyInput = { company_name: string; careers_url?: string | null; priority?: number; enabled?: boolean };
+
+export type IntegrationStatus = { connected: boolean; provider: string; status: string; account_email: string | null; scopes: string | null; last_sync_at: string | null; last_sync_status: string | null; last_error: string | null };
+export type SyncResult = { status: string; messages_scanned: number; messages_skipped_untrusted: number; messages_skipped_malformed: number; jobs_found: number; jobs_created: number; jobs_attached: number; error: string | null };
+
+export type JobDiscoveryEntry = { source: string; method: string; first_seen_at: string; last_seen_at: string };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/backend${path}`, { ...init, headers: { "Content-Type": "application/json", ...init?.headers } });
@@ -27,4 +44,19 @@ export const portalApi = {
   tailoredCvs: () => request<TailoredCv[]>("/cvs"),
   tailoredCv: (id: string) => request<TailoredCv>(`/cvs/${id}`),
   saveTailoredCv: (id: string, source_html: string) => request<TailoredCv>(`/cvs/${id}`, { method: "PUT", body: JSON.stringify({ source_html }) }),
+  createDiscoveryRun: (data: { since_days: number; ats: string[]; limit_per_ats: number }) => request<DiscoveryRun>("/discovery/runs", { method: "POST", body: JSON.stringify(data) }),
+  discoveryRun: (id: string) => request<DiscoveryRun>(`/discovery/runs/${id}`),
+  latestDiscoveryRun: () => request<DiscoveryRun>("/discovery/runs/latest"),
+  sourcesOverview: () => request<SourcesOverview>("/discovery/sources"),
+  jobDiscoveries: (jobId: string) => request<JobDiscoveryEntry[]>(`/jobs/${jobId}/discoveries`),
+
+  watchlist: () => request<WatchedCompany[]>("/discovery/watchlist"),
+  addWatchedCompany: (data: WatchedCompanyInput) => request<WatchedCompany>("/discovery/watchlist", { method: "POST", body: JSON.stringify(data) }),
+  updateWatchedCompany: (id: string, data: Partial<WatchedCompanyInput>) => request<WatchedCompany>(`/discovery/watchlist/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  removeWatchedCompany: (id: string) => request<void>(`/discovery/watchlist/${id}`, { method: "DELETE" }),
+
+  gmailStatus: () => request<IntegrationStatus>("/integrations/gmail/status"),
+  gmailConnect: () => request<{ authorization_url: string; state: string }>("/integrations/gmail/connect", { method: "POST" }),
+  gmailDisconnect: () => request<void>("/integrations/gmail/disconnect", { method: "POST" }),
+  gmailSyncNow: () => request<SyncResult>("/integrations/gmail/sync", { method: "POST" }),
 };

@@ -12,6 +12,7 @@ import { GeneratePdfButton } from "@/components/generate-pdf-button";
 import { ApplyButton } from "@/components/apply-button";
 import { DeleteFromTracker } from "@/components/delete-from-tracker";
 import { companyPresentation } from "@/lib/company-presentation.mjs";
+import { JobProvenance } from "@/components/discovery/job-provenance";
 
 // Progressive disclosure of the report. The core writes prose blocks
 // "## F) Verdict (lead)", "## A) Role Summary", "## B) Match with CV", then
@@ -53,6 +54,7 @@ export function ReportView({
   canDelete = false,
   pdfReadyFromIndex = false,
   tailoredCv = null,
+  jobId,
 }: {
   id: string;
   app: Application | null;
@@ -63,6 +65,11 @@ export function ReportView({
   file?: string | null;
   canDelete?: boolean;
   pdfReadyFromIndex?: boolean;
+  /** Portal (multi-user) mode ONLY — the page passes the shared Job's UUID
+   *  so "Found via: ..." (Phase 5 Checkpoint E §7) can be shown. Undefined
+   *  in local/single-user mode, where there is no such id, so that legacy
+   *  path renders exactly as before. */
+  jobId?: string;
 }) {
   const meta = report ? parseReport(report) : null;
   const field = (label: string) => meta?.fields.find((f) => f.label === label)?.value;
@@ -116,6 +123,12 @@ export function ReportView({
         {app && canDelete && (
           <div className="mt-3">
             <DeleteFromTracker n={id} />
+          </div>
+        )}
+
+        {jobId && (
+          <div className="mt-2">
+            <JobProvenance jobId={jobId} />
           </div>
         )}
 

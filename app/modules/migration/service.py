@@ -14,9 +14,10 @@ from app.modules.automation.workspace import workspace_for
 from app.modules.candidates.models import CandidateProfile, User
 from app.modules.jobs.models import Job
 from app.modules.jobs.schemas import JobIngest
-from app.modules.jobs.service import upsert_job
+from app.modules.jobs.service import ingest_discovery
 from app.modules.migration.parsers import first_url, markdown_table, pdf_index_rows, pipeline_rows, report_number, score_value, tsv_rows
 from app.modules.pipeline.models import CandidateJob, Evaluation
+from app.modules.pipeline.service import has_candidate_decision
 
 PRESERVED_PATHS = ["cv.md", "article-digest.md", "voice-dna.md", "portals.yml", "config/profile.yml", "config/cv-facts.json", "config/benchmarks.yml", "modes/_profile.md", "modes/_custom.md", "modes/_brief.md", "data", "reports", "output", "documents", "interview-prep", "writing-samples"]
 
@@ -105,20 +106,41 @@ async def candidate_job(db: AsyncSession, user_id: uuid.UUID, job: Job) -> Candi
     return item
 
 
-async def import_pipeline(db: AsyncSession, user: User, source: Path) -> dict[str, Job]:
+async def import_pipeline(db: AsyncSession, user: User, source: Path, *, method: str = "legacy_import", default_source: str = "legacy-pipeline") -> dict[str, Job]:
+    """Used both for the one-time legacy migration AND by recurring
+    automation (direct_discovery/reverse_discovery/level3_all re-run this on
+    every scheduled pass). A CandidateJob that already reflects a decision
+    (human or completed triage/evaluation — see
+    pipeline.service.has_candidate_decision) must not be reset back to a
+    generic "Inbox"/placeholder state just because the same pipeline.md row
+    was seen again (Checkpoint E §1).
+
+    `default_source`: scan.mjs's pipeline.md writer (formatPipelineOffer)
+    does not persist a `source:`/`ats:` label per row even though the
+    scanner itself knows it (Checkpoint E finding) — a row's `labels.source`
+    is therefore almost never present, and the "legacy-pipeline" fallback
+    would otherwise mislabel every reverse-ATS/direct-scan Job the same way.
+    Callers that know which single ATS/source produced this pipeline.md
+    (reverse_discovery does — one ats per call) should pass it here so
+    Job.source / JobDiscovery.source are accurate. direct_discovery mixes
+    several feeds/companies in one scan.mjs pass with no per-row attribution
+    available at all, so it's left at the generic fallback — a known,
+    documented limitation, not something invented here.
+    """
     jobs: dict[str, Job] = {}
     for row in pipeline_rows(read_text(source / "data/pipeline.md")):
-        payload = JobIngest(company=row.company, title=row.title, location=row.location, source=row.labels.get("source", "legacy-pipeline"), posting_url=row.url, direct_application_url=row.url, is_active=row.labels.get("liveness", "active") != "expired")
-        job, _ = await upsert_job(db, payload)
+        payload = JobIngest(company=row.company, title=row.title, location=row.location, source=row.labels.get("source", default_source), posting_url=row.url, direct_application_url=row.url, is_active=row.labels.get("liveness", "active") != "expired")
+        job, _, _ = await ingest_discovery(db, payload, method=method, user_id=user.id)
         item = await candidate_job(db, user.id, job)
-        item.pipeline_status = "Processed" if row.done else "Inbox"
-        item.eligibility = row.labels.get("eligibility")
-        item.triage_reason = row.labels.get("reason") or row.labels.get("note")
+        if not has_candidate_decision(item):
+            item.pipeline_status = "Processed" if row.done else "Inbox"
+            item.eligibility = row.labels.get("eligibility")
+            item.triage_reason = row.labels.get("reason") or row.labels.get("note")
         jobs[row.url] = job
     return jobs
 
 
-async def import_scan_history(db: AsyncSession, source: Path, known: dict[str, Job]) -> None:
+async def import_scan_history(db: AsyncSession, user: User, source: Path, known: dict[str, Job]) -> None:
     for row in tsv_rows(read_text(source / "data/scan-history.tsv")):
         url = row.get("url") or row.get("URL") or ""
         company = row.get("company") or row.get("Company") or "Unknown"
@@ -126,7 +148,7 @@ async def import_scan_history(db: AsyncSession, source: Path, known: dict[str, J
         if not url.startswith(("http://", "https://")) or url in known:
             continue
         payload = JobIngest(company=company, title=title, location=row.get("location", ""), source=row.get("source", "legacy-scan"), posting_url=url, direct_application_url=url)
-        job, _ = await upsert_job(db, payload)
+        job, _, _ = await ingest_discovery(db, payload, method="legacy_import", user_id=user.id)
         known[url] = job
 
 
@@ -141,7 +163,7 @@ async def import_applications(db: AsyncSession, user: User, source: Path, known:
         url = first_url(row.get("notes", ""), report) or f"https://legacy.invalid/application/{row.get('#') or row.get('n') or uuid.uuid4()}"
         job = known.get(url)
         if job is None:
-            job, _ = await upsert_job(db, JobIngest(company=company, title=title, source="legacy-tracker", posting_url=url, direct_application_url=url, is_active=True))
+            job, _, _ = await ingest_discovery(db, JobIngest(company=company, title=title, source="legacy-tracker", posting_url=url, direct_application_url=url, is_active=True), method="legacy_import", user_id=user.id)
             known[url] = job
         item = await candidate_job(db, user.id, job)
         item.pipeline_status = row.get("status", "Evaluated") or "Evaluated"
@@ -186,7 +208,7 @@ async def migrate_legacy_candidate(db: AsyncSession, source: Path, settings: Set
     workspace = workspace_for(user.id, settings)
     copy_legacy_data(source, workspace)
     known = await import_pipeline(db, user, source)
-    await import_scan_history(db, source, known)
+    await import_scan_history(db, user, source, known)
     evaluations = await import_applications(db, user, source, known)
     await import_tailored_cvs(db, user, source, evaluations)
     await db.commit()

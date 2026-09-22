@@ -21,6 +21,20 @@ class Settings(BaseSettings):
     artifact_storage: str = "filesystem"
     auth_test_mode: bool = False
 
+    # Candidate integrations (Gmail/LinkedIn alert ingestion, Phase 5 Checkpoint C).
+    # All optional at the Settings level — endpoints that need them return 503
+    # ("not configured") rather than failing app startup, since a candidate may
+    # simply not have connected Gmail yet. See app/core/crypto.py for why the
+    # encryption key is never persisted anywhere but this env var.
+    integration_encryption_key: str = ""
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    # Must exactly match a redirect URI registered on the Google OAuth client
+    # (e.g. https://api.example.com/api/v1/integrations/gmail/callback).
+    google_oauth_redirect_uri: str = ""
+    # Where to send the browser back to after the OAuth callback finishes.
+    web_app_url: str = "http://localhost:3000"
+
     @field_validator("database_url")
     @classmethod
     def async_database_url(cls, value: str) -> str:

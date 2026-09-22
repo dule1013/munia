@@ -1,6 +1,8 @@
 from app.modules.artifacts.models import TailoredCv
 from app.modules.candidates.models import CandidateProfile, User
-from app.modules.jobs.models import Job
+from app.modules.discovery.models import DiscoveryRun, WatchedCompany
+from app.modules.integrations.models import CandidateIntegration, OAuthState
+from app.modules.jobs.models import Job, JobDiscovery
 from app.modules.pipeline.models import CandidateJob, Evaluation
 
-__all__ = ["CandidateJob", "CandidateProfile", "Evaluation", "Job", "TailoredCv", "User"]
+__all__ = ["CandidateIntegration", "CandidateJob", "CandidateProfile", "DiscoveryRun", "Evaluation", "Job", "JobDiscovery", "OAuthState", "TailoredCv", "User", "WatchedCompany"]

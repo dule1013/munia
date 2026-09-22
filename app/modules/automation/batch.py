@@ -11,25 +11,16 @@ from app.core.config import Settings
 from app.modules.automation.runner import CommandResult, run_for_candidate
 from app.modules.automation.workspace import candidate_environment, materialize_profile
 from app.modules.candidates.models import CandidateProfile, User
+from app.modules.candidates.relevance import relevant_to_candidate
 from app.modules.candidates.service import get_profile
+from app.modules.discovery.linkedin_ingest import sync_gmail_linkedin_alerts
+from app.modules.discovery.sources import METHOD_DIRECT_SCAN, METHOD_REVERSE_ATS, METHOD_WEB_SEARCH
+from app.modules.discovery.watchlist_scan import run_watchlist_scan
+from app.modules.integrations.models import CandidateIntegration
 from app.modules.jobs.models import Job
 from app.modules.migration.parsers import pipeline_rows, shortlist_rows
 from app.modules.migration.service import import_pipeline
 from app.modules.pipeline.models import CandidateJob
-
-
-def list_values(value: object) -> list[str]:
-    return [str(item).casefold() for item in value] if isinstance(value, list) else []
-
-
-def relevant_to_candidate(job: Job, profile: CandidateProfile) -> bool:
-    targets = list_values((profile.profile.get("target_roles") or {}).get("primary"))
-    if targets and not any(target in job.title.casefold() or all(part in job.title.casefold() for part in target.split()) for target in targets):
-        return False
-    preferences = profile.profile.get("authorization") or {}
-    locations = list_values(preferences.get("work_authorization"))
-    location = job.location.casefold()
-    return not locations or not location or "remote" in location or any(allowed in location for allowed in locations)
 
 
 async def populate_candidate_jobs(db: AsyncSession) -> int:
@@ -60,7 +51,7 @@ async def direct_discovery(db: AsyncSession, settings: Settings) -> dict[str, in
             continue
         workspace = settings.career_ops_workspace_root / str(representative.id)
         before = len(list(await db.scalars(select(Job.id))))
-        await import_pipeline(db, representative, workspace)
+        await import_pipeline(db, representative, workspace, method=METHOD_DIRECT_SCAN)
         after = len(list(await db.scalars(select(Job.id))))
         discovered += max(0, after - before)
     matched = await populate_candidate_jobs(db)
@@ -79,10 +70,45 @@ async def reverse_discovery(db: AsyncSession, settings: Settings, ats: str, limi
             continue
         workspace = settings.career_ops_workspace_root / str(representative.id)
         before = len(list(await db.scalars(select(Job.id))))
-        await import_pipeline(db, representative, workspace)
+        await import_pipeline(db, representative, workspace, method=METHOD_REVERSE_ATS, default_source=ats)
         after = len(list(await db.scalars(select(Job.id))))
         discovered += max(0, after - before)
     return {"discovered": discovered, "candidate_jobs": await populate_candidate_jobs(db), "unique_search_configs": len(groups)}
+
+
+async def watchlist_all(db: AsyncSession, settings: Settings) -> dict[str, int]:
+    """Thin wrapper so scripts/run_multi_user_automation.py has one call site
+    per mode, matching direct_discovery/reverse_discovery/level3_all. The
+    actual scan-once-per-shared-target logic lives in discovery.watchlist_scan
+    (Checkpoint D), which already isolates per-target failures internally."""
+    return await run_watchlist_scan(db, settings)
+
+
+async def linkedin_alert_sync_all(db: AsyncSession, settings: Settings) -> dict[str, int]:
+    """Runs a Gmail/LinkedIn Job Alert sync for every candidate with a usable
+    Gmail connection. Candidates are processed sequentially and in complete
+    isolation: one candidate's Gmail/network failure is caught, recorded on
+    THEIR integration (visible via GET /integrations/gmail/status), and never
+    aborts the run for anyone else. No email content or token material is
+    logged — only aggregate counts and, on failure, the short provider-side
+    error string already sanitized by sync_gmail_linkedin_alerts.
+    """
+    integrations = list(await db.scalars(select(CandidateIntegration).where(CandidateIntegration.provider == "gmail", CandidateIntegration.status.in_(("connected", "error", "revoked")), CandidateIntegration.encrypted_credentials.is_not(None))))
+    totals = {"candidates": len(integrations), "candidates_ok": 0, "candidates_failed": 0, "jobs_found": 0, "jobs_created": 0, "jobs_attached": 0}
+    for integration in integrations:
+        try:
+            result = await sync_gmail_linkedin_alerts(db, integration, settings)
+        except Exception:
+            totals["candidates_failed"] += 1
+            continue
+        if result.get("status") == "ok":
+            totals["candidates_ok"] += 1
+        else:
+            totals["candidates_failed"] += 1
+        totals["jobs_found"] += result.get("jobs_found", 0)
+        totals["jobs_created"] += result.get("jobs_created", 0)
+        totals["jobs_attached"] += result.get("jobs_attached", 0)
+    return totals
 
 
 def triage_prompt() -> str:
@@ -145,7 +171,7 @@ async def level3_all(db: AsyncSession, settings: Settings) -> dict[str, int]:
         result = await _run_agent(db, user.id, settings, prompt, "claude-haiku-4-5")
         if result.returncode:
             continue
-        await import_pipeline(db, user, settings.career_ops_workspace_root / str(user.id))
+        await import_pipeline(db, user, settings.career_ops_workspace_root / str(user.id), method=METHOD_WEB_SEARCH)
         completed += 1
     await populate_candidate_jobs(db)
     return {"users": len(users), "completed": completed}

@@ -49,7 +49,10 @@ async def gmail_connect(user: User = Depends(get_current_user), db: AsyncSession
 @router.get("/gmail/callback")
 async def gmail_callback(code: str | None = None, state: str | None = None, error: str | None = None, db: AsyncSession = Depends(get_db), settings: Settings = Depends(get_settings)):
     _require_oauth_configured(settings)
-    target = f"{settings.web_app_url.rstrip('/')}/settings/integrations"
+    # /discovery is where the LinkedIn/Gmail panel actually lives — there is
+    # no /settings/integrations page in the web app (that redirect target
+    # 404'd in production; caught during Checkpoint E smoke testing).
+    target = f"{settings.web_app_url.rstrip('/')}/discovery"
     if error:
         return RedirectResponse(url=f"{target}?gmail=error&reason={error}")
     if not code or not state:

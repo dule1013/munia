@@ -92,6 +92,10 @@ async def test_callback_happy_path_stores_encrypted_token_never_plaintext(api, m
 
     resp = await client.get("/api/v1/integrations/gmail/callback", params={"code": "auth-code-123", "state": state}, follow_redirects=False)
     assert resp.status_code in (302, 307)
+    # Regression: this used to redirect to /settings/integrations, a page
+    # that doesn't exist in the web app and 404'd in production. The
+    # LinkedIn/Gmail panel lives on /discovery.
+    assert resp.headers["location"].startswith(f"{settings.web_app_url}/discovery")
     assert "gmail=connected" in resp.headers["location"]
 
     status = await client.get("/api/v1/integrations/gmail/status", headers=headers("clerk-a"))

@@ -44,7 +44,55 @@ def test_multiple_jobs_in_one_alert():
     candidates = parse_alert_message(message)
     assert {c.job_id for c in candidates} == {"1111111111", "2222222222", "3333333333"}
     assert all(c.url.startswith("https://www.linkedin.com/jobs/view/") for c in candidates)
+    # No anchor text in this fixture (bare URLs) — every job falls back to
+    # the one subject-derived title, same as before this fix.
     assert all(c.title == "Director of Engineering" for c in candidates)
+
+
+def test_digest_jobs_get_their_own_title_from_link_text_not_the_shared_subject():
+    """Regression (production, 2026-09-22): a single "N new jobs for you"
+    digest email produced N *distinct* real jobs, but every one of them was
+    stamped with the same subject-derived title, making genuinely different
+    postings look duplicated in the UI. Each job's own anchor text in the
+    body must now win over the shared subject title."""
+    body = (
+        '<a href="https://www.linkedin.com/comm/jobs/view/1111111111?trk=digest">Head of Engineering, POS Platform at Moniepoint Group</a>'
+        '<a href="https://www.linkedin.com/comm/jobs/view/2222222222?trk=digest">Engineering Manager (Remote) at Hire Feed</a>'
+        '<a href="https://www.linkedin.com/comm/jobs/view/3333333333?trk=digest">Sr. Director &amp; Head of Architecture at G-P</a>'
+    )
+    message = make_message(subject="Director of Engineering and 2 other jobs for you", body=body)
+    candidates = parse_alert_message(message)
+    titles = {c.job_id: c.title for c in candidates}
+    assert titles == {
+        "1111111111": "Head of Engineering, POS Platform at Moniepoint Group",
+        "2222222222": "Engineering Manager (Remote) at Hire Feed",
+        "3333333333": "Sr. Director & Head of Architecture at G-P",
+    }
+
+
+def test_digest_job_with_only_generic_link_text_falls_back_to_subject_title():
+    body = (
+        '<a href="https://www.linkedin.com/comm/jobs/view/4444444444?trk=digest">Director of Engineering role</a>'
+        '<a href="https://www.linkedin.com/comm/jobs/view/5555555555?trk=digest">Apply</a>'
+    )
+    message = make_message(subject="3 new Director of Engineering jobs for you", body=body)
+    candidates = parse_alert_message(message)
+    titles = {c.job_id: c.title for c in candidates}
+    assert titles["4444444444"] == "Director of Engineering role"
+    assert titles["5555555555"] == "Director of Engineering"  # generic "Apply" ignored, falls back
+
+
+def test_image_link_to_a_job_does_not_clobber_its_own_text_link_title():
+    # LinkedIn digests commonly wrap the same job in both an image link and
+    # a text link; the longer, substantive text should win regardless of order.
+    body = (
+        '<a href="https://www.linkedin.com/comm/jobs/view/6666666666?trk=logo"><img src="logo.png" alt=""/></a>'
+        '<a href="https://www.linkedin.com/comm/jobs/view/6666666666?trk=title">Head of Engineering, Platform</a>'
+    )
+    message = make_message(subject="2 new Head of Engineering jobs for you", body=body)
+    candidates = parse_alert_message(message)
+    assert len(candidates) == 1
+    assert candidates[0].title == "Head of Engineering, Platform"
 
 
 def test_normalized_url_strips_tracking_parameters():

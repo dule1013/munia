@@ -24,6 +24,7 @@ regex-extract a URL/company/title substring.
 """
 
 import base64
+import html
 import re
 from dataclasses import dataclass
 
@@ -31,6 +32,14 @@ LINKEDIN_ALERT_SENDER = "jobalerts-noreply@linkedin.com"
 
 _JOB_URL_RE = re.compile(r"https://(?:www\.)?linkedin\.com/(?:comm/)?[^\s\"<>\]]+")
 _JOB_ID_RE = re.compile(r"/jobs/view/(\d{7,})|[?&](?:currentJobId|jobId)=(\d{7,})")
+# A LinkedIn "N new jobs for you" digest packs several DISTINCT job postings
+# into one email with one generic subject line — parse_alert_subject can
+# only ever produce one title for the whole message in that case. This
+# pulls each job's OWN title from its anchor's visible link text in the
+# body, which LinkedIn's templates set to the actual job title.
+_ANCHOR_RE = re.compile(r'<a\b[^>]*\bhref=["\']([^"\']+)["\'][^>]*>(.*?)</a>', re.IGNORECASE | re.DOTALL)
+_TAG_RE = re.compile(r"<[^>]+>")
+_GENERIC_LINK_TEXT = {"apply", "apply now", "view job", "see job", "learn more", "view", "see more", ""}
 
 
 @dataclass(frozen=True)
@@ -139,15 +148,51 @@ def extract_job_urls(body: str) -> list[tuple[str, str]]:
     return found
 
 
+def _strip_tags(fragment: str) -> str:
+    text = html.unescape(_TAG_RE.sub(" ", fragment))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _per_job_link_titles(body: str) -> dict[str, str]:
+    """Best-effort per-job title from each job link's own anchor text —
+    the only thing in a multi-job digest that can distinguish one posting
+    from another. Keeps the longest substantive text seen for a given job
+    id (a digest often wraps the same job in both an image link and a text
+    link); generic CTA text ("Apply", "View job") is ignored so a caller
+    can tell "nothing useful here" apart from a real title."""
+    best: dict[str, str] = {}
+    for match in _ANCHOR_RE.finditer(body or ""):
+        href, inner = match.group(1), match.group(2)
+        id_match = _JOB_ID_RE.search(href)
+        if not id_match:
+            continue
+        job_id = id_match.group(1) or id_match.group(2)
+        text = _strip_tags(inner)
+        if not text or text.lower() in _GENERIC_LINK_TEXT or len(text) < 4:
+            continue
+        if len(text) > len(best.get(job_id, "")):
+            best[job_id] = text
+    return best
+
+
 def parse_alert_message(message: dict) -> list[LinkedInJobCandidate]:
     """The single entry point: a raw Gmail message dict in -> normalized job
     candidates out, or [] when there isn't enough to safely build one (no
     URLs, or a URL with no recognizable job id). Never fetches the LinkedIn
-    page itself — only what the alert email already contains."""
+    page itself — only what the alert email already contains.
+
+    A digest ("N new jobs for you") packs several distinct postings under
+    one generic subject — every URL would otherwise get the SAME
+    subject-derived title (the production bug this fixes). Each job's own
+    anchor text in the body, when present, is used instead; the subject-
+    derived title is only a fallback for whichever job (if any) has no
+    usable link text of its own.
+    """
     subject = get_header(message, "Subject")
     company, title = parse_alert_subject(subject)
     if not title:
         return []
     body = decode_message_body(message.get("payload"))
     urls = extract_job_urls(body)
-    return [LinkedInJobCandidate(job_id=job_id, url=url, title=title, company=company or "(LinkedIn)") for job_id, url in urls]
+    link_titles = _per_job_link_titles(body)
+    return [LinkedInJobCandidate(job_id=job_id, url=url, title=link_titles.get(job_id) or title, company=company or "(LinkedIn)") for job_id, url in urls]

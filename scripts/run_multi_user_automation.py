@@ -8,16 +8,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import get_settings
 from app.core.database import SessionLocal
-from app.modules.automation.batch import direct_discovery, level3_all, linkedin_alert_sync_all, reverse_discovery, triage_all, watchlist_all
+from app.modules.automation.batch import direct_discovery, level3_all, linkedin_alert_sync_all, morning_run, reverse_discovery, triage_all, watchlist_all
 
 
 async def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["daily", "greenhouse", "lever", "ashby", "workday", "icims", "level3", "triage", "linkedin", "watchlist"])
+    parser.add_argument("mode", choices=["daily", "morning", "greenhouse", "lever", "ashby", "workday", "icims", "level3", "triage", "linkedin", "watchlist"])
     args = parser.parse_args()
     settings = get_settings()
     async with SessionLocal() as db:
-        if args.mode == "daily":
+        if args.mode == "morning":
+            result = await morning_run(db, settings)
+        elif args.mode == "daily":
             result = await direct_discovery(db, settings)
         elif args.mode == "level3":
             result = await level3_all(db, settings)

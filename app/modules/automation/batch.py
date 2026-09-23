@@ -3,25 +3,31 @@ import hashlib
 import json
 import uuid
 from collections import defaultdict
+from datetime import datetime, timezone
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
+from app.modules.ai_config import service as ai_config_service
 from app.modules.automation.runner import CommandResult, run_for_candidate
 from app.modules.automation.workspace import candidate_environment, materialize_profile
 from app.modules.candidates.models import CandidateProfile, User
 from app.modules.candidates.relevance import relevant_to_candidate
 from app.modules.candidates.service import get_profile
+from app.modules.discovery.ai_search import AISearchNotConfigured, AISearchRateLimited, build_daily_discovery_query, run_ai_search
 from app.modules.discovery.ats_rotation import DEFAULT_BATCH_SIZES, advance_cursor, get_or_create_cursor, next_batch
 from app.modules.discovery.linkedin_ingest import sync_gmail_linkedin_alerts
-from app.modules.discovery.sources import METHOD_DIRECT_SCAN, METHOD_REVERSE_ATS, METHOD_WEB_SEARCH
+from app.modules.discovery.models import MorningRun
+from app.modules.discovery.sources import METHOD_DIRECT_SCAN, METHOD_REVERSE_ATS, METHOD_WEB_SEARCH, REVERSE_SCAN_SOURCES
 from app.modules.discovery.watchlist_scan import run_watchlist_scan
 from app.modules.integrations.models import CandidateIntegration
 from app.modules.jobs.models import Job
 from app.modules.migration.parsers import pipeline_rows, shortlist_rows
 from app.modules.migration.service import import_pipeline
+from app.modules.pipeline.fit_assessment import NoAIConfigured, apply_assessment, assess_fit
 from app.modules.pipeline.models import CandidateJob
+from app.modules.pipeline.service import INBOX_TRIAGE_RESULTS, apply_location_eligibility, has_candidate_decision
 
 
 async def populate_candidate_jobs(db: AsyncSession) -> int:
@@ -175,6 +181,15 @@ async def persist_triage_results(db: AsyncSession, user_id: uuid.UUID, workspace
     changed = 0
     try:
         for item, job in items:
+            # Skip a job the candidate already resolved themselves, AND a
+            # job that was ALREADY really triaged before (triaged_at set) —
+            # the latter is what stops a rediscovered-from-another-source
+            # job from being silently re-triaged (and potentially reset)
+            # every morning; has_candidate_decision alone doesn't catch this
+            # since a real triage_result of "worth"/"uncertain" doesn't
+            # itself count as a human decision.
+            if has_candidate_decision(item) or item.triaged_at is not None:
+                continue
             outcome = shortlist.get(job.posting_url) or shortlist.get(job.canonical_url)
             row = pipeline.get(job.posting_url) or pipeline.get(job.canonical_url)
             if outcome:
@@ -183,6 +198,7 @@ async def persist_triage_results(db: AsyncSession, user_id: uuid.UUID, workspace
                 item.triage_reason = outcome.reason
                 item.triage_metadata = {"source": outcome.source or job.source, "location": outcome.location or job.location, "posted": outcome.posted, "shortlist_company": outcome.company, "shortlist_title": outcome.title}
                 item.skipped = False
+                item.triaged_at = datetime.now(timezone.utc)
                 changed += 1
             elif row and row.done:
                 item.eligibility = row.labels.get("eligibility") or "ineligible"
@@ -191,6 +207,7 @@ async def persist_triage_results(db: AsyncSession, user_id: uuid.UUID, workspace
                 item.triage_metadata = {"source": row.labels.get("source") or job.source, "location": row.location or job.location, "posted": row.labels.get("posted", ""), "liveness": row.labels.get("liveness", "")}
                 item.pipeline_status = "Discarded"
                 item.skipped = True
+                item.triaged_at = datetime.now(timezone.utc)
                 changed += 1
         await db.commit()
     except Exception:
@@ -199,18 +216,37 @@ async def persist_triage_results(db: AsyncSession, user_id: uuid.UUID, workspace
     return changed
 
 
+async def _triage_one_candidate(db: AsyncSession, settings: Settings, user_id: uuid.UUID) -> dict:
+    """Extracted from triage_all's loop body so the morning orchestrator can
+    run cheap triage for ONE candidate as part of its own per-candidate
+    cycle (Phase 5 follow-up correction), while triage_all keeps working
+    unchanged for the standalone `run_multi_user_automation.py triage` mode.
+    Never raises — a agent/CLI failure (e.g. the `claude` binary not being
+    available on this deployment) is reported as a status string so the
+    morning run summary can distinguish "triage genuinely found nothing new"
+    from "triage couldn't run at all"."""
+    try:
+        result = await _run_agent(db, user_id, settings, triage_prompt(), "claude-haiku-4-5")
+    except Exception as error:
+        return {"status": "error", "error": f"triage agent could not start: {error}"[:500]}
+    if result.returncode:
+        return {"status": "error", "error": (result.stderr or "")[-500:] or "triage agent exited non-zero"}
+    workspace = settings.career_ops_workspace_root / str(user_id)
+    try:
+        processed = await persist_triage_results(db, user_id, workspace)
+    except (OSError, ValueError) as error:
+        await db.rollback()
+        return {"status": "error", "error": str(error)[:500]}
+    return {"status": "ok", "processed": processed}
+
+
 async def triage_all(db: AsyncSession, settings: Settings) -> dict[str, int]:
     users = list(await db.scalars(select(User).order_by(User.created_at)))
     processed = 0
     for user in users:
-        result = await _run_agent(db, user.id, settings, triage_prompt(), "claude-haiku-4-5")
-        if result.returncode:
-            continue
-        workspace = settings.career_ops_workspace_root / str(user.id)
-        try:
-            processed += await persist_triage_results(db, user.id, workspace)
-        except (OSError, ValueError):
-            await db.rollback()
+        outcome = await _triage_one_candidate(db, settings, user.id)
+        if outcome["status"] == "ok":
+            processed += outcome["processed"]
     return {"users": len(users), "processed": processed}
 
 
@@ -226,6 +262,153 @@ async def level3_all(db: AsyncSession, settings: Settings) -> dict[str, int]:
         completed += 1
     await populate_candidate_jobs(db)
     return {"users": len(users), "completed": completed}
+
+
+async def _candidate_morning_cycle(db: AsyncSession, settings: Settings, user: User, run_id: uuid.UUID) -> dict:
+    """Per-candidate steps 4/6/8 of the morning cycle (Phase 5 follow-up
+    §E/§6): AI/web discovery, location eligibility, lightweight fit
+    assessment — everything candidate-specific, as opposed to the shared
+    reverse-ATS/watchlist work already done once globally before this runs.
+    A candidate with no AI configured (or an invalid/exhausted key) simply
+    skips the AI-dependent steps with a clear status; it never raises past
+    this function, so one candidate's AI trouble can't affect another's."""
+    result: dict = {"ai_discovery": None, "location_classified": 0, "triage": None, "fit_assessed": 0}
+
+    ai_config = await ai_config_service.get_ai_config(db, user.id)
+    if ai_config is None:
+        result["ai_status"] = "skipped_not_configured"
+    else:
+        try:
+            profile = await get_profile(db, user.id)
+            query = build_daily_discovery_query(profile.profile if profile else {})
+            search_result = await run_ai_search(db, settings, user, query)
+            result["ai_discovery"] = search_result
+            result["ai_status"] = "ok" if search_result.get("status") == "ok" else "error"
+        except AISearchNotConfigured:
+            result["ai_status"] = "skipped_not_configured"
+        except AISearchRateLimited:
+            result["ai_status"] = "skipped_rate_limited"
+        except Exception as error:
+            result["ai_status"] = "error"
+            result["ai_error"] = str(error)[:500]
+
+    # Location eligibility — deterministic, runs regardless of AI config.
+    # ineligible jobs are hard-discarded (triage_result="discard") right
+    # here, so cheap triage below never even sees them.
+    try:
+        result["location_classified"] = await apply_location_eligibility(db, user.id)
+    except Exception as error:
+        result["location_error"] = str(error)[:500]
+
+    # Cheap candidate-specific triage — runs regardless of AI config (it's
+    # the existing CLI-agent-based triage, independent of a candidate's own
+    # Anthropic key). Reported separately in the summary so a triage
+    # failure (e.g. the triage agent being unavailable on this deployment)
+    # is diagnosable on its own, distinct from an AI-discovery/assessment
+    # failure. persist_triage_results itself skips anything already
+    # triaged (triaged_at set) or human-decided — see its own guard.
+    triage_outcome = await _triage_one_candidate(db, settings, user.id)
+    result["triage"] = triage_outcome
+
+    # Lightweight fit assessment — only for jobs that (a) actually went
+    # through REAL triage (triaged_at set — never the fresh "uncertain"
+    # placeholder, which triage_result alone can't distinguish), (b)
+    # survived it ("worth", or genuinely "uncertain" — triage's own
+    # ambiguity is exactly what the deeper assessment exists to resolve),
+    # (c) aren't location-ineligible, and (d) haven't been assessed yet —
+    # this last check is also what stops a rediscovered-from-another-source
+    # already-"strong" job from being reassessed for no reason. Only runs
+    # when AI is configured.
+    if ai_config is not None:
+        rows = await db.execute(
+            select(CandidateJob, Job)
+            .join(Job, Job.id == CandidateJob.job_id)
+            .where(
+                CandidateJob.user_id == user.id,
+                CandidateJob.pipeline_status == "Inbox",
+                CandidateJob.skipped.is_(False),
+                CandidateJob.triaged_at.is_not(None),
+                CandidateJob.triage_result.in_(INBOX_TRIAGE_RESULTS),
+                or_(CandidateJob.eligibility.is_(None), CandidateJob.eligibility != "ineligible"),
+                CandidateJob.ai_fit.is_(None),
+            )
+        )
+        assessed = 0
+        for item, job in rows.all():
+            try:
+                assessment = await assess_fit(db, settings, item, job)
+            except NoAIConfigured:
+                break  # key was removed mid-loop; stop this candidate's assessments, not the run
+            except Exception:
+                continue  # one bad job assessment must not stop the rest of this candidate's queue
+            if assessment:
+                await apply_assessment(db, item, assessment, run_id=run_id)
+                assessed += 1
+        await db.commit()
+        result["fit_assessed"] = assessed
+
+    return result
+
+
+async def morning_run(db: AsyncSession, settings: Settings) -> dict:
+    """The single top-level automation Railway schedules (Phase 5 follow-up
+    §5): LinkedIn -> Watchlist -> rotating ATS slices (shared/global work,
+    done once) -> per-candidate AI discovery/location/fit-assessment
+    (candidate-specific) -> Today qualification is implicit in the
+    ai_fit="strong" writes above, read live by GET /pipeline/today.
+
+    Every step is isolated: a source failure is caught and recorded, a
+    candidate failure is caught and recorded, and NEITHER aborts the rest of
+    the run. Only a MorningRun that reaches "completed"/
+    "completed_with_warnings" becomes eligible as the reference run for
+    Today's "N new" count (see pipeline.service.today_summary) — a "failed"
+    run is never used as that reference.
+    """
+    run = MorningRun(id=uuid.uuid4(), status="running")
+    db.add(run)
+    await db.commit()
+
+    summary: dict = {"sources": {}, "candidates": {}}
+    had_warning = False
+
+    def record_source(name: str, outcome: dict) -> None:
+        nonlocal had_warning
+        summary["sources"][name] = outcome
+        if outcome.get("status") == "error":
+            had_warning = True
+
+    try:
+        summary["sources"]["linkedin"] = await linkedin_alert_sync_all(db, settings)
+    except Exception as error:
+        record_source("linkedin", {"status": "error", "error": str(error)[:500]})
+
+    try:
+        summary["sources"]["watchlist"] = await watchlist_all(db, settings)
+    except Exception as error:
+        record_source("watchlist", {"status": "error", "error": str(error)[:500]})
+
+    for ats in sorted(REVERSE_SCAN_SOURCES):
+        try:
+            record_source(ats, await rotating_reverse_discovery(db, settings, ats))
+        except Exception as error:
+            record_source(ats, {"status": "error", "error": str(error)[:500]})
+
+    users = list(await db.scalars(select(User).order_by(User.created_at)))
+    for user in users:
+        try:
+            candidate_result = await _candidate_morning_cycle(db, settings, user, run.id)
+        except Exception as error:
+            candidate_result = {"status": "error", "error": str(error)[:500]}
+            had_warning = True
+        if candidate_result.get("ai_status") == "error" or (candidate_result.get("triage") or {}).get("status") == "error":
+            had_warning = True
+        summary["candidates"][str(user.id)] = candidate_result
+
+    run.status = "completed_with_warnings" if had_warning else "completed"
+    run.summary = summary
+    run.finished_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"run_id": str(run.id), "status": run.status, "summary": summary}
 
 
 async def _run_agent(db: AsyncSession, user_id: uuid.UUID, settings: Settings, prompt: str, model: str):

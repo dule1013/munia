@@ -1,9 +1,11 @@
 import uuid
-from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.candidates.location_eligibility import build_location_config_from_profile, classify_location_eligibility
+from app.modules.candidates.service import get_profile
+from app.modules.discovery.models import MorningRun
 from app.modules.jobs.models import Job
 from app.modules.pipeline.models import CandidateJob
 from app.modules.pipeline.schemas import CandidateJobCreate, CandidateJobUpdate
@@ -102,8 +104,8 @@ async def update_candidate_job(db: AsyncSession, item: CandidateJob, payload: Ca
 #
 # Inbox = "this may be worth your attention": still sitting in the default
 # "Inbox" pipeline_status (a human hasn't moved/applied/dismissed it), not
-# skipped, and triage didn't hard-discard it. Deliberately broader than
-# Today — plausible/uncertain jobs live here too.
+# skipped, not location-ineligible, and triage didn't hard-discard it.
+# Deliberately broader than Today — plausible/uncertain jobs live here too.
 #
 # Today = only the strongest, still-actionable opportunities: the same
 # Inbox criteria, PLUS the lightweight AI fit assessment (see
@@ -117,7 +119,16 @@ async def update_candidate_job(db: AsyncSession, item: CandidateJob, payload: Ca
 # because add_candidate_job/apply_assessment never touch an item once
 # has_candidate_decision(item) is true, rediscovery can never resurrect it.
 def _actionable_filters(user_id: uuid.UUID):
-    return (CandidateJob.user_id == user_id, CandidateJob.pipeline_status == "Inbox", CandidateJob.skipped.is_(False), CandidateJob.triage_result.in_(INBOX_TRIAGE_RESULTS))
+    return (
+        CandidateJob.user_id == user_id,
+        CandidateJob.pipeline_status == "Inbox",
+        CandidateJob.skipped.is_(False),
+        CandidateJob.triage_result.in_(INBOX_TRIAGE_RESULTS),
+        # NULL-safe: plain `!= "ineligible"` would silently exclude every
+        # row where eligibility is still unset (NULL != x is NULL, not
+        # true, in SQL) — most CandidateJobs before the location gate runs.
+        or_(CandidateJob.eligibility.is_(None), CandidateJob.eligibility != "ineligible"),
+    )
 
 
 async def list_inbox(db: AsyncSession, user_id: uuid.UUID) -> list[tuple[CandidateJob, Job]]:
@@ -134,23 +145,49 @@ async def list_today(db: AsyncSession, user_id: uuid.UUID) -> list[tuple[Candida
     return list(rows.all())
 
 
-# How wide a window (from the most recent qualifying assessment backward)
-# counts as "the latest morning cycle" for the NEW-vs-CURRENT distinction —
-# a deliberate, documented heuristic rather than a new run-tracking table
-# (Phase 5 follow-up: "do not build a complex analytics/event system"). A
-# single morning cycle is expected to finish in well under this window, and
-# cycles are expected to run roughly once/day, so this reliably separates
-# "qualified in the latest completed run" from "qualified in an earlier one"
-# without needing to record which specific run produced which assessment.
-NEW_WINDOW_HOURS = 20.0
-
-
-async def today_summary(db: AsyncSession, user_id: uuid.UUID, *, new_window_hours: float = NEW_WINDOW_HOURS) -> dict:
+async def today_summary(db: AsyncSession, user_id: uuid.UUID) -> dict:
+    """"current" = every strong actionable opportunity right now (list_today
+    length). "new" = of those, how many carry ai_fit_run_id pointing at the
+    LATEST *completed* (or completed_with_warnings) MorningRun — i.e. newly
+    qualified during that specific run, not merely "recently assessed"
+    (fixes the earlier rolling-time-window heuristic, which broke under
+    delayed/manual/retried runs). A job already strong from an older run
+    that this run's reassessment simply reconfirmed does NOT count as new
+    (apply_assessment only sets ai_fit_run_id on an actual plausible/reject
+    -> strong transition). No morning run has completed yet -> new is 0."""
     today_rows = await list_today(db, user_id)
     current = len(today_rows)
-    if not today_rows:
-        return {"new": 0, "current": 0}
-    latest = max(item.ai_fit_assessed_at for item, _ in today_rows)
-    cutoff = latest - timedelta(hours=new_window_hours)
-    new = sum(1 for item, _ in today_rows if item.ai_fit_assessed_at >= cutoff)
+    latest_run = await db.scalar(select(MorningRun).where(MorningRun.status.in_(("completed", "completed_with_warnings"))).order_by(MorningRun.finished_at.desc()).limit(1))
+    if not latest_run:
+        return {"new": 0, "current": current}
+    new = sum(1 for item, _ in today_rows if item.ai_fit_run_id == latest_run.id)
     return {"new": new, "current": current}
+
+
+async def apply_location_eligibility(db: AsyncSession, user_id: uuid.UUID) -> int:
+    """Phase 5 follow-up §3 — wires the deterministic location classifier
+    into the real per-candidate pipeline, not just a tested-in-isolation
+    helper. Runs on every still-undecided CandidateJob missing an
+    eligibility verdict; an "ineligible" result ALSO hard-discards the item
+    (triage_result="discard") so it's excluded from Inbox/Today and never
+    reaches the (expensive) lightweight AI fit assessment — matching "should
+    not proceed into expensive AI assessment... should not appear in Today...
+    should not be promoted as an actionable Inbox match". "eligible"/
+    "plausible" jobs are left exactly as found for triage/assessment to
+    continue processing. Never touches a CandidateJob a human (or an
+    existing real decision) already owns."""
+    profile = await get_profile(db, user_id)
+    config = build_location_config_from_profile(profile.profile if profile else {})
+    rows = await db.execute(select(CandidateJob, Job).join(Job, Job.id == CandidateJob.job_id).where(CandidateJob.user_id == user_id, CandidateJob.eligibility.is_(None)))
+    classified = 0
+    for item, job in rows.all():
+        if has_candidate_decision(item):
+            continue
+        tier, reason = classify_location_eligibility(job.location, job.description or "", config)
+        item.eligibility = tier
+        if tier == "ineligible":
+            item.triage_result = "discard"
+            item.triage_reason = reason
+        classified += 1
+    await db.commit()
+    return classified

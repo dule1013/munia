@@ -122,19 +122,45 @@ def test_home_country_named_via_residency_requirement_is_eligible():
     assert tier == "eligible"
 
 
-def test_general_onboarding_derivation_from_profile_data():
-    """No Dusan-specific code — this is what ANY candidate's onboarding
-    produces from their own current_location/work_authorization."""
-    config = build_location_config_from_profile("Madrid, Spain", ["Spain", "European Union"])
+def test_general_onboarding_derivation_from_simple_profile_shape():
+    """No Dusan-specific code — this is what a freshly onboarded candidate's
+    simpler profile shape (candidate.location + authorization.work_authorization)
+    produces, before any richer location block exists."""
+    profile = {"candidate": {"location": "Madrid, Spain"}, "authorization": {"work_authorization": ["Spain", "European Union"]}}
+    config = build_location_config_from_profile(profile)
     assert config.home_country == "spain"
     assert config.home_city == "madrid"
     assert "europe" in config.eligible_regions
     assert "eea" in config.eligible_regions
 
 
+def test_general_derivation_prefers_the_richer_location_block_when_present():
+    """Matches production's actual profile shape (verified against Dusan's
+    real CandidateProfile) — location.country/city/authorized_in, not the
+    simpler onboarding-only shape."""
+    profile = {
+        "location": {"city": "Madrid", "country": "Spain", "authorized_in": ["Spain", "European Union", "European Economic Area", "Serbia"]},
+        "candidate": {"location": "Madrid, Spain"},
+    }
+    config = build_location_config_from_profile(profile)
+    assert config.home_country == "spain"
+    assert config.home_city == "madrid"
+    assert config.eligible_regions == frozenset({"eu", "european union", "eea", "european economic area", "europe", "emea", "worldwide", "global"})
+
+
+def test_worldwide_and_global_are_always_eligible_regions_by_default():
+    """Deliberately universal, not Dusan-specific: these two terms are as
+    broad as a remote-scope claim gets, and the classifier only ever treats
+    an eligible region as "plausible" (never outright "eligible"), so
+    including them by default can't manufacture false certainty."""
+    profile = {"candidate": {"location": "Austin, United States"}, "authorization": {"work_authorization": ["United States"]}}
+    config = build_location_config_from_profile(profile)
+    assert config.eligible_regions == frozenset({"worldwide", "global"})
+
+
 def test_general_onboarding_derivation_without_broader_authorization():
-    config = build_location_config_from_profile("Austin, United States", ["United States"])
+    profile = {"candidate": {"location": "Austin, United States"}, "authorization": {"work_authorization": ["United States"]}}
+    config = CandidateLocationConfig(home_country="united states", home_city="austin", eligible_regions=frozenset())
     assert config.home_country == "united states"
-    assert config.eligible_regions == frozenset()
     tier, _ = classify_location_eligibility("Remote - Germany", "", config)
     assert tier == "ineligible"

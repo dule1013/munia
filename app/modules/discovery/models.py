@@ -56,6 +56,25 @@ class WatchedCompany(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
+class MorningRun(Base):
+    """One global morning automation cycle (Phase 5 follow-up §E) — NOT
+    per-candidate (DiscoveryRun is, and doesn't fit a shared cycle that does
+    per-candidate work internally). Deliberately minimal: this exists to
+    answer exactly two questions precisely — "how many strong opportunities
+    are currently actionable" (CandidateJob.ai_fit == "strong", no run
+    needed) and "how many of those newly became strong during the latest
+    completed run" (CandidateJob.ai_fit_run_id == this run's id) — not to be
+    a general automation event/analytics system."""
+
+    __tablename__ = "morning_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    status: Mapped[str] = mapped_column(String(30), default="running", index=True)  # running | completed | completed_with_warnings | failed
+    summary: Mapped[dict] = mapped_column(JSON_TYPE, default=dict)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class AtsScanCursor(Base):
     """One row per reverse-ATS source (Phase 5 follow-up §C) — the
     persistent position deterministic morning rotation resumes from. Global,

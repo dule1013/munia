@@ -50,6 +50,22 @@ class AISearchRateLimited(RuntimeError):
         super().__init__(f"try again in {retry_after_seconds:.0f}s")
 
 
+def build_daily_discovery_query(profile: dict) -> str:
+    """ONE focused query for the automated morning AI/web discovery step
+    (Phase 5 follow-up §7) — combines every primary target role and the
+    candidate's location context into a single search call, rather than
+    looping one query per role (which would multiply search cost roughly
+    N-fold for no real benefit, since Anthropic's web_search tool already
+    explores multiple angles per call within its own max_uses budget)."""
+    profile = profile or {}
+    target_roles = ((profile.get("target_roles") or {}).get("primary")) or []
+    location_block = profile.get("location") or {}
+    location_desc = location_block.get("city") or location_block.get("country") or (profile.get("candidate") or {}).get("location") or ""
+    roles_str = " OR ".join(target_roles) if target_roles else "senior engineering leadership roles"
+    location_str = f", eligible for a candidate based in {location_desc} (including relevant remote-eligible postings)" if location_desc else ""
+    return f"Currently open job postings for: {roles_str}{location_str}. Prioritize roles posted in the last few days."
+
+
 def build_prompt(query: str, target_roles: list[str] | None) -> str:
     focus = f" The candidate is specifically targeting: {', '.join(target_roles)}." if target_roles else ""
     return (

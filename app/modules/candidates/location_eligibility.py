@@ -150,25 +150,52 @@ def classify_location_eligibility(location: str, description: str, config: Candi
     return "plausible", "no clear geographic signal"
 
 
-def build_location_config_from_profile(current_location: str, work_authorization: list[str]) -> CandidateLocationConfig:
-    """General onboarding derivation (Phase 5 follow-up §D) — no
-    candidate-specific hardcoding. `current_location` supplies home_country/
-    home_city (best-effort split on the last comma-separated segment);
-    `work_authorization` entries that match a known REGION_TERMS/country are
-    folded into eligible_regions so a candidate who is, say, EU-authorized
-    gets "europe"/"eu"/"eea" treated as eligible without hand-authoring it."""
-    parts = [p.strip().lower() for p in (current_location or "").split(",") if p.strip()]
-    home_city = parts[0] if len(parts) >= 2 else ""
-    home_country = parts[-1] if parts else ""
+def build_location_config_from_profile(profile: dict) -> CandidateLocationConfig:
+    """General derivation from a CandidateProfile.profile dict (Phase 5
+    follow-up §D) — no candidate-specific hardcoding. Reads whichever shape
+    is actually present:
 
-    eligible_regions: set[str] = set()
-    for entry in work_authorization or []:
-        lowered = entry.strip().lower()
+    - the richer `location: {country, city, authorized_in: [...]}` block
+      (what a fleshed-out production profile carries — e.g. Dusan's:
+      `authorized_in: ["Spain", "European Union", "European Economic Area",
+      "Serbia"]`), preferred when present; or
+    - the simpler shape today's portal onboarding produces
+      (`candidate.location: "City, Country"` + `authorization.
+      work_authorization: [...]`), as a fallback for a freshly onboarded
+      candidate with no richer location block yet.
+
+    `authorized_in`/`work_authorization` entries that name a known
+    REGION_TERMS group are folded into eligible_regions, with EU/EEA
+    authorization additionally implying the EMEA/Europe siblings a job
+    posting might use instead of the exact phrase the candidate typed.
+    "worldwide"/"global" are ALWAYS included: those two terms are about as
+    broad as a remote-scope claim gets, and classify_location_eligibility
+    already treats an eligible broad-region term as merely "plausible" (not
+    "eligible" outright) — so this never manufactures false certainty, it
+    only keeps a "Worldwide remote" posting from being needlessly penalized
+    for lacking an explicit region match.
+    """
+    location_block = profile.get("location") or {}
+    home_country = str(location_block.get("country") or "").strip().lower()
+    home_city = str(location_block.get("city") or "").strip().lower()
+    authorized_in = list(location_block.get("authorized_in") or [])
+
+    if not home_country:
+        candidate_location = str((profile.get("candidate") or {}).get("location") or "")
+        parts = [p.strip().lower() for p in candidate_location.split(",") if p.strip()]
+        home_city = home_city or (parts[0] if len(parts) >= 2 else "")
+        home_country = parts[-1] if parts else ""
+        if not authorized_in:
+            authorized_in = list((profile.get("authorization") or {}).get("work_authorization") or [])
+
+    eligible_regions: set[str] = {"worldwide", "global"}
+    for entry in authorized_in:
+        lowered = str(entry).strip().lower()
         regions = _resolve_regions(lowered)
         eligible_regions.update(regions)
-        # "European Union"/"EU" authorization plausibly also covers the
-        # sibling region terms a job posting might use instead.
+        # "European Union"/"EEA" authorization plausibly also covers the
+        # sibling region terms (including EMEA) a job posting might use instead.
         if regions & {"eu", "european union", "eea", "european economic area"}:
-            eligible_regions.update({"eu", "european union", "eea", "european economic area", "europe"})
+            eligible_regions.update({"eu", "european union", "eea", "european economic area", "europe", "emea"})
 
     return CandidateLocationConfig(home_country=home_country, home_city=home_city, eligible_regions=frozenset(eligible_regions))

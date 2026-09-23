@@ -56,4 +56,8 @@ class CandidateJobResponse(BaseModel):
     notes: str
     evaluated_at: datetime | None
     applied_at: datetime | None
+    ai_fit: str | None
+    ai_fit_reason: str | None
+    ai_fit_confidence: str | None
+    ai_fit_assessed_at: datetime | None
     job: JobResponse

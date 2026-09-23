@@ -105,12 +105,20 @@ async def assess_fit(db: AsyncSession, settings: Settings, item: CandidateJob, j
     return parse_assessment(text)
 
 
-async def apply_assessment(db: AsyncSession, item: CandidateJob, assessment: dict) -> None:
+async def apply_assessment(db: AsyncSession, item: CandidateJob, assessment: dict, *, run_id=None) -> None:
     """Persists the assessment — but never on a CandidateJob a human has
     already acted on (has_candidate_decision), matching the same
     triage-protection discipline as add_candidate_job (Checkpoint E §1).
     A "reject" result never deletes/hides an existing human-visible
-    CandidateJob; it only means the item won't newly qualify for Today."""
+    CandidateJob; it only means the item won't newly qualify for Today.
+
+    `ai_fit_run_id` is set ONLY on a transition INTO "strong" (was not
+    already "strong"), never on a reassessment that merely reconfirms an
+    already-strong job — this is precisely what makes Today's "N new" count
+    mean "newly qualified during the latest completed run", not "assessed
+    recently". A job already strong from an earlier run stays tagged with
+    THAT run even if today's cycle reassesses and reconfirms it.
+    """
     if has_candidate_decision(item):
         return
     fit = assessment["fit"]
@@ -120,7 +128,10 @@ async def apply_assessment(db: AsyncSession, item: CandidateJob, assessment: dic
     # rather than discarding the assessment outright.
     if fit == "strong" and confidence == "low":
         fit = "plausible"
+    newly_strong = fit == "strong" and item.ai_fit != "strong"
     item.ai_fit = fit
     item.ai_fit_reason = assessment["reason"]
     item.ai_fit_confidence = confidence
     item.ai_fit_assessed_at = datetime.now(timezone.utc)
+    if newly_strong:
+        item.ai_fit_run_id = run_id

@@ -5,6 +5,7 @@ import { Globe, Loader2, Newspaper, Radar } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { AIConfigPanel } from "@/components/discovery/ai-config-panel";
 import { LinkedInPanel } from "@/components/discovery/linkedin-panel";
+import { MorningStatusPanel } from "@/components/discovery/morning-status-panel";
 import { WatchlistPanel } from "@/components/discovery/watchlist-panel";
 import { portalApi, type SourceEntry, type SourceMetrics, type SourcesOverview as SourcesOverviewData } from "@/lib/api-client";
 
@@ -57,6 +58,7 @@ export function SourcesOverview() {
 
   return (
     <div className="space-y-6">
+      <MorningStatusPanel />
       <LinkedInPanel />
       <WatchlistPanel />
       <AIConfigPanel />

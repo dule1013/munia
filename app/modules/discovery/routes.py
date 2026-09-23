@@ -4,13 +4,14 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.database import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.modules.candidates.models import User
-from app.modules.discovery.models import DiscoveryRun
+from app.modules.discovery.models import DiscoveryRun, MorningRun
 from app.modules.discovery.service import (
     ACTIVE_STATUSES,
     RUN_TIMEOUT_SECONDS,
@@ -118,6 +119,19 @@ async def add_offers(payload: AddOffersRequest, user: User = Depends(get_current
 @router.get("/sources")
 async def get_sources_overview(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await build_sources_overview(db, user.id)
+
+
+@router.get("/morning-status")
+async def get_morning_status(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Operational visibility for the shared morning cycle (Phase 5 follow-up
+    §11) — reuses MorningRun rather than adding new status infrastructure.
+    Global (not per-candidate), same as the reverse-ATS/watchlist work it
+    reports on; every authenticated candidate can see the same run status."""
+    run = await db.scalar(select(MorningRun).order_by(MorningRun.started_at.desc()).limit(1))
+    if run is None:
+        return {"status": "never_run", "started_at": None, "finished_at": None, "sources": {}}
+    sources = (run.summary or {}).get("sources", {})
+    return {"status": run.status, "started_at": run.started_at, "finished_at": run.finished_at, "sources": {name: outcome.get("status", "ok") for name, outcome in sources.items()}}
 
 
 class AISearchRequest(BaseModel):

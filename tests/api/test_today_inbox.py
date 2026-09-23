@@ -4,12 +4,13 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app.modules.candidates.models import User
+from app.modules.discovery.models import MorningRun
 from app.modules.jobs.schemas import JobIngest
 from app.modules.jobs.service import ingest_discovery
+from app.modules.pipeline.fit_assessment import apply_assessment
 from app.modules.pipeline.models import CandidateJob
-from app.modules.pipeline.schemas import CandidateJobCreate
+from app.modules.pipeline.schemas import CandidateJobCreate, CandidateJobUpdate
 from app.modules.pipeline.service import add_candidate_job, list_inbox, list_today, today_summary, update_candidate_job
-from app.modules.pipeline.schemas import CandidateJobUpdate
 
 
 async def seed_user(sessions, clerk_user_id: str = "clerk-a") -> User:
@@ -26,11 +27,11 @@ async def make_job(db, *, title: str, company: str = "Acme"):
     return job
 
 
-async def seed_candidate_job(sessions, user, *, title: str, triage_result: str = "worth", ai_fit: str | None = None, ai_fit_assessed_at: datetime | None = None, pipeline_status: str = "Inbox", skipped: bool = False):
+async def seed_candidate_job(sessions, user, *, title: str, triage_result: str = "worth", ai_fit: str | None = None, ai_fit_assessed_at: datetime | None = None, ai_fit_run_id=None, pipeline_status: str = "Inbox", skipped: bool = False):
     async with sessions() as db:
         job = await make_job(db, title=title)
         await db.commit()
-        item = CandidateJob(user_id=user.id, job_id=job.id, triage_result=triage_result, ai_fit=ai_fit, ai_fit_assessed_at=ai_fit_assessed_at, pipeline_status=pipeline_status, skipped=skipped)
+        item = CandidateJob(user_id=user.id, job_id=job.id, triage_result=triage_result, ai_fit=ai_fit, ai_fit_assessed_at=ai_fit_assessed_at, ai_fit_run_id=ai_fit_run_id, pipeline_status=pipeline_status, skipped=skipped)
         db.add(item)
         await db.commit()
         await db.refresh(item)
@@ -196,15 +197,86 @@ async def test_candidate_isolation_for_today_and_inbox(api):
     assert len(today_b) == 0
 
 
-async def test_today_summary_new_vs_current(api):
+async def make_morning_run(sessions, *, status: str = "completed") -> uuid.UUID:
+    async with sessions() as db:
+        run = MorningRun(id=uuid.uuid4(), status=status, finished_at=datetime.now(timezone.utc))
+        db.add(run)
+        await db.commit()
+        return run.id
+
+
+async def test_today_summary_new_is_tied_to_the_latest_completed_run_not_a_time_window(api):
+    """Regression: a rolling time-window heuristic would miscount under
+    delayed/manual/retried runs. "new" must mean "ai_fit_run_id == the
+    latest completed run's id", nothing else."""
     _, sessions, _ = api
     user = await seed_user(sessions)
-    now = datetime.now(timezone.utc)
-    await seed_candidate_job(sessions, user, title="Old", ai_fit="strong", ai_fit_assessed_at=now - timedelta(days=3))
-    await seed_candidate_job(sessions, user, title="New1", ai_fit="strong", ai_fit_assessed_at=now)
-    await seed_candidate_job(sessions, user, title="New2", ai_fit="strong", ai_fit_assessed_at=now - timedelta(minutes=5))
+    old_run = await make_morning_run(sessions)
+    latest_run = await make_morning_run(sessions)
+
+    await seed_candidate_job(sessions, user, title="Old", ai_fit="strong", ai_fit_assessed_at=datetime.now(timezone.utc), ai_fit_run_id=old_run)
+    await seed_candidate_job(sessions, user, title="New1", ai_fit="strong", ai_fit_assessed_at=datetime.now(timezone.utc), ai_fit_run_id=latest_run)
+    await seed_candidate_job(sessions, user, title="New2", ai_fit="strong", ai_fit_assessed_at=datetime.now(timezone.utc), ai_fit_run_id=latest_run)
 
     async with sessions() as db:
         summary = await today_summary(db, user.id)
     assert summary["current"] == 3
     assert summary["new"] == 2
+
+
+async def test_no_completed_run_yet_means_zero_new(api):
+    _, sessions, _ = api
+    user = await seed_user(sessions)
+    await seed_candidate_job(sessions, user, title="A", ai_fit="strong", ai_fit_assessed_at=datetime.now(timezone.utc))
+    async with sessions() as db:
+        summary = await today_summary(db, user.id)
+    assert summary == {"new": 0, "current": 1}
+
+
+async def test_a_run_still_in_progress_is_not_used_as_the_reference_run(api):
+    _, sessions, _ = api
+    user = await seed_user(sessions)
+    running_run = await make_morning_run(sessions, status="running")
+    await seed_candidate_job(sessions, user, title="A", ai_fit="strong", ai_fit_assessed_at=datetime.now(timezone.utc), ai_fit_run_id=running_run)
+    async with sessions() as db:
+        summary = await today_summary(db, user.id)
+    assert summary["new"] == 0  # the run isn't "completed" yet, so it's never the reference run
+
+
+async def test_rediscovery_reassessment_does_not_make_an_old_strong_job_new_again(api):
+    """A job already strong from run 1; run 2 reassesses it and confirms
+    "strong" again — apply_assessment must NOT move its ai_fit_run_id to
+    run 2, or it would incorrectly count as "new" in run 2's summary."""
+    _, sessions, _ = api
+    user = await seed_user(sessions)
+    run1 = await make_morning_run(sessions)
+    cj_id = await seed_candidate_job(sessions, user, title="A", ai_fit="strong", ai_fit_assessed_at=datetime.now(timezone.utc) - timedelta(days=1), ai_fit_run_id=run1)
+    run2 = await make_morning_run(sessions)
+
+    async with sessions() as db:
+        item = await db.get(CandidateJob, cj_id)
+        await apply_assessment(db, item, {"fit": "strong", "reason": "still a great match", "confidence": "high"}, run_id=run2)
+        await db.commit()
+        await db.refresh(item)
+    assert item.ai_fit_run_id == run1  # unchanged — still attributed to when it FIRST became strong
+
+    async with sessions() as db:
+        summary = await today_summary(db, user.id)
+    assert summary["new"] == 0  # run2 is latest, but this job isn't newly strong under it
+
+
+async def test_plausible_becoming_strong_during_the_current_run_counts_as_new(api):
+    _, sessions, _ = api
+    user = await seed_user(sessions)
+    cj_id = await seed_candidate_job(sessions, user, title="A", triage_result="worth", ai_fit="plausible", ai_fit_assessed_at=datetime.now(timezone.utc) - timedelta(days=1))
+    run = await make_morning_run(sessions)
+
+    async with sessions() as db:
+        item = await db.get(CandidateJob, cj_id)
+        await apply_assessment(db, item, {"fit": "strong", "reason": "now a clear match", "confidence": "high"}, run_id=run)
+        await db.commit()
+
+    async with sessions() as db:
+        summary = await today_summary(db, user.id)
+    assert summary["new"] == 1
+    assert summary["current"] == 1

@@ -1,7 +1,8 @@
 export type PortalUser = { id: string; email: string; name: string; created_at: string; updated_at: string };
 export type CandidateProfile = { user: PortalUser; profile: Record<string, unknown>; master_cv: string; onboarding_complete: boolean; updated_at: string };
 export type SharedJob = { id: string; company: string; title: string; location: string; description: string | null; source: string; posting_url: string; direct_application_url: string | null; posted_at: string | null; first_seen_at: string; last_seen_at: string; is_active: boolean };
-export type CandidateJob = { id: string; user_id: string; job_id: string; eligibility: string | null; triage_result: "worth" | "uncertain" | "discard" | null; triage_reason: string | null; triage_metadata: Record<string, unknown>; fit_score: number | null; recommendation: string | null; pipeline_status: string; saved: boolean; skipped: boolean; notes: string; evaluated_at: string | null; applied_at: string | null; job: SharedJob };
+export type CandidateJob = { id: string; user_id: string; job_id: string; eligibility: string | null; triage_result: "worth" | "uncertain" | "discard" | null; triage_reason: string | null; triage_metadata: Record<string, unknown>; fit_score: number | null; recommendation: string | null; pipeline_status: string; saved: boolean; skipped: boolean; notes: string; evaluated_at: string | null; applied_at: string | null; ai_fit: "strong" | "plausible" | "reject" | null; ai_fit_reason: string | null; ai_fit_confidence: "high" | "low" | null; ai_fit_assessed_at: string | null; job: SharedJob };
+export type TodaySummary = { new: number; current: number };
 export type TailoredCv = { id: string; job_id: string; candidate_job_id: string; evaluation_id: string | null; company: string; title: string; source_html?: string | null; pdf_ready: boolean; manually_edited: boolean; validation_status: string; generated_at: string; modified_at: string };
 export type Evaluation = { id: string; candidate_job_id: string; report_number: number | null; score: number | null; recommendation: string | null; report_markdown: string; evaluated_at: string };
 export type PipelineDetail = { candidate_job: CandidateJob; evaluation: Evaluation | null; tailored_cv: { id: string; pdf_ready: boolean; manually_edited: boolean } | null };
@@ -26,6 +27,7 @@ export type AISearchResult = { status: "ok" | "error"; error: string | null; job
 
 export type IntegrationStatus = { connected: boolean; provider: string; status: string; account_email: string | null; scopes: string | null; last_sync_at: string | null; last_sync_status: string | null; last_error: string | null };
 export type SyncResult = { status: string; messages_scanned: number; messages_skipped_untrusted: number; messages_skipped_malformed: number; jobs_found: number; jobs_created: number; jobs_attached: number; error: string | null };
+export type MorningStatus = { status: "never_run" | "running" | "completed" | "completed_with_warnings" | "failed"; started_at: string | null; finished_at: string | null; sources: Record<string, string> };
 
 export type JobDiscoveryEntry = { source: string; method: string; first_seen_at: string; last_seen_at: string };
 
@@ -54,6 +56,9 @@ export const portalApi = {
   saveMasterCv: (content: string) => request<CandidateProfile>("/candidate/master-cv", { method: "PUT", body: JSON.stringify({ content }) }),
   jobs: () => request<SharedJob[]>("/jobs"),
   pipeline: () => request<CandidateJob[]>("/pipeline"),
+  inbox: () => request<CandidateJob[]>("/pipeline/inbox"),
+  today: () => request<CandidateJob[]>("/pipeline/today"),
+  todaySummary: () => request<TodaySummary>("/pipeline/today/summary"),
   updateCandidateJob: (id: string, data: Partial<CandidateJob>) => request<CandidateJob>(`/pipeline/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
   tailoredCvs: () => request<TailoredCv[]>("/cvs"),
   tailoredCv: (id: string) => request<TailoredCv>(`/cvs/${id}`),
@@ -62,6 +67,7 @@ export const portalApi = {
   discoveryRun: (id: string) => request<DiscoveryRun>(`/discovery/runs/${id}`),
   latestDiscoveryRun: () => request<DiscoveryRun>("/discovery/runs/latest"),
   sourcesOverview: () => request<SourcesOverview>("/discovery/sources"),
+  morningStatus: () => request<MorningStatus>("/discovery/morning-status"),
   jobDiscoveries: (jobId: string) => request<JobDiscoveryEntry[]>(`/jobs/${jobId}/discoveries`),
 
   watchlist: () => request<WatchedCompany[]>("/discovery/watchlist"),

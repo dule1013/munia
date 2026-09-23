@@ -490,6 +490,32 @@ export function passesFilters(job, { titleFilter, locationFilter, contentFilter,
 // can't recognize as duplicates (#3439). `provider` is optional so this stays
 // safe to call for seed-pass offers, which carry no SOURCES entry to look one
 // up from. Falls back to the pre-#3439 behavior whenever no key is derived.
+// The --json contract's per-offer shape (job-enrichment audit, #3811). This
+// is what the backend automation path (automation.batch.rotating_reverse_
+// discovery) reads directly — deliberately NOT the same shape as
+// formatPipelineOffer()/data/pipeline.md (scan.mjs), which the local
+// single-user CLI flow depends on unchanged and which still never carries
+// description (its own docstring explains why: JD bodies are meant to be
+// fetched lazily via fetch-jd.mjs at evaluation time, not stored, for that
+// flow). Description/externalId are populated only when the provider's list
+// API already returned them for free (see providers/{greenhouse,lever,
+// ashby}.mjs) — no second fetch is made here to obtain them.
+export function formatJsonOffer(o) {
+  return {
+    company: o.company,
+    title: o.title,
+    url: o.url,
+    location: o.location || null,
+    postedAt: o.postedAt ? new Date(o.postedAt).toISOString().slice(0, 10) : null,
+    dateStatus: o.dateStatus || (o.postedAt ? 'dated' : 'unknown'),
+    blacklisted: Boolean(o.blacklisted),
+    note: o.note || null,
+    source: o.source,
+    description: o.description || null,
+    externalId: o.id || null,
+  };
+}
+
 export function dedupTokenFor(job, provider) {
   return provider?.dedupKey?.(job) || normalizeUrlForDedup(job.url);
 }
@@ -1232,17 +1258,7 @@ async function main() {
       cappedBoards,
       dnsPacing: { delayed: pacing.delayed, waitedMs: Math.round(pacing.waitedMs) },
       saved,
-      offers: offers.map(o => ({
-        company: o.company,
-        title: o.title,
-        url: o.url,
-        location: o.location || null,
-        postedAt: o.postedAt ? new Date(o.postedAt).toISOString().slice(0, 10) : null,
-        dateStatus: o.dateStatus || (o.postedAt ? 'dated' : 'unknown'),
-        blacklisted: Boolean(o.blacklisted),
-        note: o.note || null,
-        source: o.source,
-      })),
+      offers: offers.map(formatJsonOffer),
     }) + '\n');
     return;
   }

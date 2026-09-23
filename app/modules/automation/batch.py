@@ -13,6 +13,7 @@ from app.modules.automation.workspace import candidate_environment, materialize_
 from app.modules.candidates.models import CandidateProfile, User
 from app.modules.candidates.relevance import relevant_to_candidate
 from app.modules.candidates.service import get_profile
+from app.modules.discovery.ats_rotation import DEFAULT_BATCH_SIZES, advance_cursor, get_or_create_cursor, next_batch
 from app.modules.discovery.linkedin_ingest import sync_gmail_linkedin_alerts
 from app.modules.discovery.sources import METHOD_DIRECT_SCAN, METHOD_REVERSE_ATS, METHOD_WEB_SEARCH
 from app.modules.discovery.watchlist_scan import run_watchlist_scan
@@ -74,6 +75,56 @@ async def reverse_discovery(db: AsyncSession, settings: Settings, ats: str, limi
         after = len(list(await db.scalars(select(Job.id))))
         discovered += max(0, after - before)
     return {"discovered": discovered, "candidate_jobs": await populate_candidate_jobs(db), "unique_search_configs": len(groups)}
+
+
+async def rotating_reverse_discovery(db: AsyncSession, settings: Settings, ats: str, batch_size: int | None = None) -> dict:
+    """The deterministic-rotation counterpart to reverse_discovery (Phase 5
+    follow-up §C), for AUTOMATED morning discovery — manual Explore Scan and
+    the standalone `run_multi_user_automation.py <ats>` mode are unaffected
+    and keep using reverse_discovery's --shuffle behavior.
+
+    Reuses one --json --dry-run-free scan-ats-full.mjs invocation per call
+    (same as reverse_discovery) but with --offset from a persistent
+    AtsScanCursor instead of --shuffle, and only advances that cursor when
+    the scan actually SUCCEEDS — a failed/partial run leaves next_offset
+    where it was so no slice of the network is silently skipped.
+    """
+    batch_size = batch_size or DEFAULT_BATCH_SIZES.get(ats, 200)
+    cursor = await get_or_create_cursor(db, ats)
+    offset, limit = next_batch(cursor, batch_size)
+    await db.commit()
+
+    profiles = (await db.execute(select(User, CandidateProfile).join(CandidateProfile))).all()
+    groups: dict[str, User] = {}
+    for user, profile in profiles:
+        groups.setdefault(hashlib.sha256(profile.portals_yaml.encode()).hexdigest(), user)
+
+    discovered = 0
+    dataset_size = cursor.dataset_size or 0
+    overall_status = "ok"
+    last_error: str | None = None
+    for representative in groups.values():
+        result = await run_for_candidate(db, representative.id, settings, "scan-ats-full.mjs", "--since", "7", "--ats", ats, "--limit", str(limit), "--offset", str(offset), "--json", "--liveness", timeout=1800)
+        if result.returncode:
+            overall_status = "error"
+            last_error = (result.stderr or "")[-2000:] or "scan failed"
+            continue
+        try:
+            payload = json.loads(result.stdout)
+            dataset_size = payload.get("datasetSize", {}).get(ats) or dataset_size
+        except (json.JSONDecodeError, ValueError):
+            pass
+        workspace = settings.career_ops_workspace_root / str(representative.id)
+        before = len(list(await db.scalars(select(Job.id))))
+        await import_pipeline(db, representative, workspace, method=METHOD_REVERSE_ATS, default_source=ats)
+        after = len(list(await db.scalars(select(Job.id))))
+        discovered += max(0, after - before)
+
+    cursor = await get_or_create_cursor(db, ats)  # re-fetch: prior commits may have expired it
+    await advance_cursor(db, cursor, scanned_offset=offset, batch_size=limit, dataset_size=dataset_size, status=overall_status, error=last_error)
+    await db.commit()
+
+    return {"source": ats, "offset": offset, "batch_size": limit, "dataset_size": dataset_size, "next_offset": cursor.next_offset, "status": overall_status, "discovered": discovered, "candidate_jobs": await populate_candidate_jobs(db), "unique_search_configs": len(groups)}
 
 
 async def watchlist_all(db: AsyncSession, settings: Settings) -> dict[str, int]:

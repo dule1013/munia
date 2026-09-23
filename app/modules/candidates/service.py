@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any
 
 import yaml
@@ -112,9 +113,72 @@ def career_ops_profile(data: OnboardingRequest, trusted_email: str) -> dict[str,
     }
 
 
+_STOPWORDS = {"of", "the", "a", "an"}
+# The one level-word pair a literal-substring match cannot bridge on its
+# own: "VP of Engineering" and "Vice President of Engineering" share no
+# common word. Kept as a short, explicit map rather than a general synonym
+# engine — title_filter's own AND-group ("word + word", any order) already
+# handles every other case career-ops' own configs solve by hand today
+# ("director + engineering" catches "Director of Engineering",
+# "Engineering Director", "Director, Software Engineering", ...).
+_LEVEL_ALIASES: dict[str, str] = {"vp": "vice president", "vice president": "vp"}
+# Phrase <-> acronym aliases with no shared substring at all.
+_ACRONYM_ALIASES: dict[str, str] = {
+    "chief technology officer": "CTO",
+    "chief executive officer": "CEO",
+    "chief product officer": "CPO",
+    "chief operating officer": "COO",
+}
+
+
+def _significant_words(phrase: str) -> list[str]:
+    return [w for w in re.findall(r"[a-zA-Z]+", phrase.lower()) if w not in _STOPWORDS]
+
+
+def expand_title_aliases(target_roles: list[str]) -> list[str]:
+    """Widen a candidate's literal onboarding target-role phrases with
+    order-independent AND-group variants (title-keywords.mjs's `"word +
+    word"` syntax), so `positive: ["Director of Engineering"]` isn't
+    limited to that one exact phrasing.
+
+    Every original entry is kept verbatim and still matches exactly as
+    before — this only ADDS entries, mirroring the AND-group pattern
+    career-ops configs already write by hand (see portals.yml's own
+    `"director + engineering"`) instead of requiring every candidate to
+    discover and type that syntax themselves.
+    """
+    expanded: list[str] = []
+    seen: set[str] = set()
+    for role in target_roles:
+        stripped = role.strip() if role else ""
+        if stripped and stripped.casefold() not in seen:
+            expanded.append(stripped)
+            seen.add(stripped.casefold())
+
+    def add(entry: str) -> None:
+        if entry and entry.casefold() not in seen:
+            expanded.append(entry)
+            seen.add(entry.casefold())
+
+    for role in target_roles:
+        words = _significant_words(role)
+        if len(words) >= 2:
+            add(" + ".join(words))
+            for index, word in enumerate(words):
+                alias = _LEVEL_ALIASES.get(word)
+                if alias:
+                    swapped = list(words)
+                    swapped[index] = alias
+                    add(" + ".join(swapped))
+        acronym = _ACRONYM_ALIASES.get(role.strip().casefold())
+        if acronym:
+            add(acronym)
+    return expanded
+
+
 def portals_yaml(data: OnboardingRequest) -> str:
     config = {
-        "title_filter": {"positive": data.target_roles, "negative": ["Junior", "Intern", "Individual Contributor", "Sales Engineer", "Solutions Engineer", "Field Engineer"]},
+        "title_filter": {"positive": expand_title_aliases(data.target_roles), "negative": ["Junior", "Intern", "Individual Contributor", "Sales Engineer", "Solutions Engineer", "Field Engineer"]},
         "location_filter": {"allow": list(dict.fromkeys([data.current_location, *data.work_authorization, "Remote"])), "always_allow": [data.current_location, "Remote"]},
         "tracked_companies": [],
         "generic_feeds": [],

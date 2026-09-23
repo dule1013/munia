@@ -4,13 +4,18 @@
 // can never drift between the two halves. Server-only logic (spawning the scanner,
 // writing temp files) lives in lib/core/{scan,portals,pipeline}.ts.
 
-export type AtsSource = "greenhouse" | "lever" | "ashby" | "workday";
-export const ATS_SOURCES: AtsSource[] = ["greenhouse", "lever", "ashby", "workday"];
+// Kept in sync with the backend's verified reverse-network capability set
+// (app.modules.discovery.sources.REVERSE_SCAN_SOURCES) — a source only
+// belongs here once it actually has a full-network dataset scan-ats-full.mjs
+// can walk, not just because a Career Ops provider module exists for it.
+export type AtsSource = "greenhouse" | "lever" | "ashby" | "workday" | "icims";
+export const ATS_SOURCES: AtsSource[] = ["greenhouse", "lever", "ashby", "workday", "icims"];
 export const ATS_LABEL: Record<AtsSource, string> = {
   greenhouse: "Greenhouse",
   lever: "Lever",
   ashby: "Ashby",
   workday: "Workday",
+  icims: "iCIMS",
 };
 
 /** The full UI filter state. The keyword/location lists mirror scan.mjs's

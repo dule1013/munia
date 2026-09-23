@@ -29,6 +29,14 @@ class CandidateJob(Base):
     notes: Mapped[str] = mapped_column(Text, default="")
     evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Lightweight morning "is this worth Today?" assessment (Phase 5 follow-up
+    # §F) — deliberately separate from fit_score/recommendation/evaluated_at
+    # above, which belong to the full, human-triggered Evaluate action. Never
+    # confuse the two: ai_fit is cheap/automated, fit_score is the real thing.
+    ai_fit: Mapped[str | None] = mapped_column(String(20), index=True)  # "strong" | "plausible" | "reject"
+    ai_fit_reason: Mapped[str | None] = mapped_column(Text)
+    ai_fit_confidence: Mapped[str | None] = mapped_column(String(10))  # "high" | "low"
+    ai_fit_assessed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

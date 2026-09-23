@@ -18,6 +18,12 @@ export type SourcesOverview = { groups: SourceGroup[] };
 export type WatchedCompany = { id: string; company_name: string; careers_url: string | null; provider: string | null; provider_tenant_id: string | null; priority: number; enabled: boolean; last_scanned_at: string | null; scan_status: string | null; last_scan_error: string | null; created_at: string; updated_at: string };
 export type WatchedCompanyInput = { company_name: string; careers_url?: string | null; priority?: number; enabled?: boolean };
 
+// ── Candidate AI configuration + hosted AI Search (Phase 5 follow-up) ──────
+export type AIModelOption = { id: string; label: string; cost_note: string };
+export type AIConfigStatus = { configured: boolean; provider: string | null; model: string | null; updated_at: string | null; available_models: AIModelOption[] };
+export type AIConfigInput = { provider?: string; model: string; api_key: string };
+export type AISearchResult = { status: "ok" | "error"; error: string | null; jobs_found: number; jobs_created: number; jobs_attached: number };
+
 export type IntegrationStatus = { connected: boolean; provider: string; status: string; account_email: string | null; scopes: string | null; last_sync_at: string | null; last_sync_status: string | null; last_error: string | null };
 export type SyncResult = { status: string; messages_scanned: number; messages_skipped_untrusted: number; messages_skipped_malformed: number; jobs_found: number; jobs_created: number; jobs_attached: number; error: string | null };
 
@@ -28,6 +34,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: response.statusText }));
     throw new Error(error.detail || error.error || "Request failed");
+  }
+  // 204 (and any other empty-body response, e.g. gmail/ai-config DELETE)
+  // has nothing for .json() to parse — it throws "Unexpected end of JSON
+  // input" rather than resolving, which every void-typed caller here
+  // (gmailDisconnect, removeAiConfig, ...) would otherwise silently choke
+  // on as an unhandled rejection.
+  if (response.status === 204) {
+    return undefined as T;
   }
   return response.json() as Promise<T>;
 }
@@ -59,4 +73,9 @@ export const portalApi = {
   gmailConnect: () => request<{ authorization_url: string; state: string }>("/integrations/gmail/connect", { method: "POST" }),
   gmailDisconnect: () => request<void>("/integrations/gmail/disconnect", { method: "POST" }),
   gmailSyncNow: () => request<SyncResult>("/integrations/gmail/sync", { method: "POST" }),
+
+  aiConfigStatus: () => request<AIConfigStatus>("/ai-config/status"),
+  setAiConfig: (data: AIConfigInput) => request<AIConfigStatus>("/ai-config", { method: "PUT", body: JSON.stringify(data) }),
+  removeAiConfig: () => request<void>("/ai-config", { method: "DELETE" }),
+  aiSearch: (query: string) => request<AISearchResult>("/discovery/ai-search", { method: "POST", body: JSON.stringify({ query }) }),
 };

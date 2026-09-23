@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.modules.discovery.service import fail_orphaned_runs
+from app.modules.ai_config.routes import router as ai_config_router
 from app.modules.artifacts.routes import router as artifacts_router
 from app.modules.automation.routes import router as automation_router
 from app.modules.auth.routes import router as auth_router
@@ -33,6 +34,7 @@ async def lifespan(_: FastAPI):
 app = FastAPI(title="Career Ops Portal API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=True, allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"], allow_headers=["Authorization", "Content-Type", "X-Test-Clerk-User-Id"])
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(ai_config_router, prefix="/api/v1")
 app.include_router(candidates_router, prefix="/api/v1")
 app.include_router(discovery_router, prefix="/api/v1")
 app.include_router(integrations_router, prefix="/api/v1")

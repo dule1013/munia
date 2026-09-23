@@ -11,7 +11,7 @@ from app.modules.candidates.models import User
 from app.modules.jobs.models import Job
 from app.modules.pipeline.models import CandidateJob, Evaluation
 from app.modules.pipeline.schemas import CandidateJobCreate, CandidateJobResponse, CandidateJobUpdate, EvaluationResponse
-from app.modules.pipeline.service import add_candidate_job, candidate_job_for_user, update_candidate_job
+from app.modules.pipeline.service import add_candidate_job, candidate_job_for_user, list_inbox, list_today, today_summary, update_candidate_job
 
 router = APIRouter(prefix="/pipeline", tags=["pipeline"])
 
@@ -33,6 +33,25 @@ async def create_candidate_job(payload: CandidateJobCreate, user: User = Depends
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
     return response(item, await db.get_one(Job, item.job_id))
+
+
+@router.get("/inbox", response_model=list[CandidateJobResponse])
+async def get_inbox(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """All actionable jobs plausibly worth the candidate's attention —
+    deliberately broader than /pipeline/today (Phase 5 follow-up)."""
+    return [response(item, job) for item, job in await list_inbox(db, user.id)]
+
+
+@router.get("/today", response_model=list[CandidateJobResponse])
+async def get_today(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Only AI-qualified strong actionable opportunities, cumulative across
+    runs, newest-qualifying first."""
+    return [response(item, job) for item, job in await list_today(db, user.id)]
+
+
+@router.get("/today/summary")
+async def get_today_summary(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> dict:
+    return await today_summary(db, user.id)
 
 
 @router.get("/evaluations/{evaluation_id}", response_model=EvaluationResponse)

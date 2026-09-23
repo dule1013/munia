@@ -262,18 +262,19 @@ export const SOURCES = {
 const KNOWN_FLAGS = [
   '--since', '--limit', '--ats', '--seeds', '--dry-run', '--liveness',
   '--verbose', '--md-out', '--json', '--include-undated', '--include-blacklisted',
-  '--shuffle', '--resume', '--help', '-h',
+  '--shuffle', '--offset', '--resume', '--help', '-h',
 ];
 
 // Flags that consume the next argv token as a value (space-separated form —
 // the `--flag=value` form is self-contained and never needs this).
-const VALUE_FLAGS = ['--since', '--limit', '--ats', '--seeds', '--md-out'];
+const VALUE_FLAGS = ['--since', '--limit', '--ats', '--seeds', '--md-out', '--offset'];
 
 const USAGE = `Usage:
   node scan-ats-full.mjs                      # scan all ATS directories, last 3 days
   node scan-ats-full.mjs --since 7            # postings from the last 7 days
   node scan-ats-full.mjs --ats greenhouse,workday  # subset of sources
   node scan-ats-full.mjs --limit 200          # max companies per ATS (default: all)
+  node scan-ats-full.mjs --offset 1500        # start the slice at company #1500 (deterministic rotation; mutually exclusive with --shuffle)
   node scan-ats-full.mjs --dry-run            # preview without writing files
   node scan-ats-full.mjs --liveness           # Playwright-verify matches before writing
   node scan-ats-full.mjs --include-blacklisted # audit: let data/blacklist.md matches through, annotated
@@ -314,6 +315,16 @@ function parseArgs(argv) {
   }
   const sinceDays = sinceArg.days ?? 3;
   const limit = Number(valueOf('--limit')) || Infinity;
+  const offsetRaw = valueOf('--offset');
+  const offset = offsetRaw != null ? Number(offsetRaw) : 0;
+  if (!Number.isInteger(offset) || offset < 0) {
+    console.error('Error: --offset must be a non-negative integer.');
+    process.exit(1);
+  }
+  if (offset > 0 && args.includes('--shuffle')) {
+    console.error('Error: --offset and --shuffle are mutually exclusive (deterministic rotation vs. random sampling).');
+    process.exit(1);
+  }
   const atsArg = valueOf('--ats');
   // --seeds: optional comma-separated VC portfolio sources (e.g. yc,a16z).
   // When set, the seed companies are fetched and probed via the ATS providers
@@ -340,6 +351,7 @@ function parseArgs(argv) {
   return {
     sinceDays,
     limit,
+    offset,
     ats,
     seeds,
     dryRun: args.includes('--dry-run'),
@@ -492,12 +504,34 @@ export function providerForSource(source) {
   return SOURCES[String(source || '').replace(/-full$/, '')]?.provider;
 }
 
-// Cap-aware company sampling. Default: the dataset's natural (alphabetical)
-// prefix. With --shuffle: a random sample of `limit` companies, so a capped
-// scan isn't always biased to the same alphabetical-first slice. Pure; returns
-// a new array and never mutates `list`.
-export function sampleCompanies(list, limit, shuffle = false) {
-  if (!shuffle || limit >= list.length) return list.slice(0, limit);
+// Cap-aware company sampling. Default (no --shuffle, no --offset): the
+// dataset's natural (alphabetical) prefix. With --shuffle: a random sample
+// of `limit` companies, so a capped scan isn't always biased to the same
+// alphabetical-first slice. With --offset (mutually distinct from
+// --shuffle — automated rotation uses this, manual Explore keeps using
+// --shuffle/no-offset unchanged): a deterministic slice starting at
+// `offset`, wrapping to the beginning of the dataset if `offset + limit`
+// runs past the end, so a persistent cursor (see
+// app.modules.discovery.ats_rotation) can walk the whole network over
+// successive runs with no gaps and no random re-scans of the same slice.
+// Pure; returns a new array and never mutates `list`.
+export function sampleCompanies(list, limit, shuffle = false, offset = 0) {
+  if (shuffle) {
+    if (limit >= list.length) return list.slice(0, limit);
+    return sampleCompaniesShuffled(list, limit);
+  }
+  if (!offset || list.length === 0 || limit >= list.length) return list.slice(0, limit);
+  const start = offset % list.length;
+  const end = start + limit;
+  if (end <= list.length) return list.slice(start, end);
+  // Wraps within this same run rather than deferring the remainder to the
+  // next one — simpler to reason about (one call always returns exactly
+  // `limit` companies, or the whole list if it's smaller) and still
+  // correct: the caller advances its cursor to `end % list.length` either way.
+  return list.slice(start).concat(list.slice(0, end - list.length));
+}
+
+function sampleCompaniesShuffled(list, limit) {
   const copy = list.slice();
   for (let i = copy.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -812,6 +846,11 @@ async function main() {
   // instead of passing for a fully-walked board.
   let cappedBoards = cc.cappedBoards || 0;
   const datasetStatus = {};
+  // Per-source dataset size (Phase 5 follow-up §C) — the persistent
+  // per-provider rotation cursor needs this to compute where its NEXT
+  // offset should wrap to, without re-deriving it from companiesAvailable
+  // (which is a cross-source total when --ats names more than one).
+  const perSourceDatasetSize = {};
 
   const snapshotCounters = () => ({
     totalCompaniesScanned, totalErrors, totalRetiredBoardsSkipped,
@@ -891,7 +930,8 @@ async function main() {
       continue;
     }
     const datasetHash = datasetFingerprint(list);
-    const entriesAll = sampleCompanies(list, opts.limit, opts.shuffle).map(source.toEntry).filter(Boolean);
+    perSourceDatasetSize[name] = list.length;
+    const entriesAll = sampleCompanies(list, opts.limit, opts.shuffle, opts.offset).map(source.toEntry).filter(Boolean);
 
     let startAt = 0;
     if (checkpoint && checkpoint.current?.name === name) {
@@ -1180,6 +1220,8 @@ async function main() {
       // stat'ing the checkpoint file itself.
       stoppedByOutage,
       datasetStatus,
+      datasetSize: perSourceDatasetSize,
+      offset: opts.offset,
       postingsKept: offers.length,
       postingsDroppedNoDate: droppedNoDate,
       postingsFilteredBlacklist: blacklistResult.filteredBlacklist,

@@ -54,3 +54,23 @@ class WatchedCompany(Base):
     last_scan_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class AtsScanCursor(Base):
+    """One row per reverse-ATS source (Phase 5 follow-up §C) — the
+    persistent position deterministic morning rotation resumes from. Global,
+    not per-candidate: the reverse-network scan itself is shared discovery
+    work, same as the canonical Job it produces. See
+    app.modules.discovery.ats_rotation for the offset/wraparound math."""
+
+    __tablename__ = "ats_scan_cursors"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    next_offset: Mapped[int] = mapped_column(Integer, default=0)
+    dataset_size: Mapped[int | None] = mapped_column(Integer)
+    last_scanned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_status: Mapped[str | None] = mapped_column(String(20))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

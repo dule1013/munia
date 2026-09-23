@@ -5,6 +5,7 @@ import { Compass, ChevronDown, RotateCcw, AlertTriangle, Sparkles, Settings } fr
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { instrumentSerif } from "@/lib/fonts";
+import { usePortalMode } from "@/components/portal-mode-provider";
 import type { Application, InboxJob } from "@/lib/career-ops";
 import { normalizeTextKey } from "@/lib/core/normalize-text-key.mjs";
 import { paramsToFilters, paramsToAi, type ExploreFilters } from "@/lib/explore";
@@ -39,7 +40,8 @@ export function ExplorerView({
   appsSnapshot: Application[];
   rootExists: boolean;
 }) {
-  const { filters, setFilters, initFilters, phase, running, offers, discover, loadFresh, status, error, scannerMissing, mode, setMode, aiIntent, setAiIntent, discoverAI, companiesScanned, companiesAvailable, capHit, droppedNoDate, partial } = useExplore();
+  const { filters, setFilters, initFilters, phase, running, offers, discover, loadFresh, status, error, scannerMissing, mode, setMode, aiIntent, setAiIntent, discoverAI, companiesScanned, companiesAvailable, capHit, droppedNoDate, partial, hostedAiResult } = useExplore();
+  const portalEnabled = usePortalMode();
   const scanNote =
     companiesScanned > 0
       ? `Scanned ${companiesScanned.toLocaleString()}${companiesAvailable > companiesScanned ? ` of ${companiesAvailable.toLocaleString()}` : ""} compan${companiesScanned === 1 ? "y" : "ies"}${partial ? " · some sources were unreachable" : ""}.`
@@ -106,7 +108,7 @@ export function ExplorerView({
   );
 
   const isAi = mode === "ai";
-  if (running) return isAi ? <AiHuntView cliName={cli.name} /> : <DiscoveringState />;
+  if (running) return isAi ? <AiHuntView cliName={portalEnabled ? "Munia" : cli.name} /> : <DiscoveringState />;
 
   const canDiscover = filters.ats.length > 0;
   const isResults = phase === "results";
@@ -141,7 +143,7 @@ export function ExplorerView({
 
       {isAi ? (
         phase === "blocked" ? (
-          <BlockedCard />
+          <BlockedCard portalEnabled={portalEnabled} />
         ) : (
           <div className="space-y-6">
             <AiSearchBox
@@ -152,6 +154,27 @@ export function ExplorerView({
               cliName={cli.name}
               onRunScan={() => setMode("scan")}
             />
+            {portalEnabled && hostedAiResult && (
+              <div className={cn("rounded-xl border px-4 py-3 text-sm", hostedAiResult.ok ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400" : "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300")}>
+                {hostedAiResult.message}
+                {hostedAiResult.ok && (
+                  <>
+                    {" "}
+                    <Link href="/pipeline" className="font-medium underline underline-offset-2">
+                      View Pipeline
+                    </Link>
+                  </>
+                )}
+                {!hostedAiResult.ok && hostedAiResult.message.toLowerCase().includes("ai search isn't configured") && (
+                  <>
+                    {" "}
+                    <Link href="/discovery" className="font-medium underline underline-offset-2">
+                      Set up AI in Discovery
+                    </Link>
+                  </>
+                )}
+              </div>
+            )}
             {phase === "results" && <ResultsList offers={enriched} />}
             {phase === "empty-loose" && (
               <EmptyState
@@ -382,7 +405,25 @@ function FailedCard({ msg, scannerMissing, onRetry }: { msg: string; scannerMiss
   );
 }
 
-function BlockedCard() {
+function BlockedCard({ portalEnabled }: { portalEnabled: boolean }) {
+  // Portal (hosted, multi-user) mode has no local CLI at all — "connect
+  // your own CLI" is a local-first assumption that doesn't apply, and
+  // /config is the local-mode settings page, not a hosted concept. AI
+  // Search on Munia is server-side-or-nothing; until that's built, say so
+  // plainly rather than pointing at a local CLI setup flow that can't work.
+  if (portalEnabled) {
+    return (
+      <div className="rounded-2xl border border-border bg-surface/30 px-6 py-12 text-center">
+        <div className="mx-auto grid size-12 place-items-center rounded-full bg-brand-soft text-brand">
+          <Sparkles className="size-6" />
+        </div>
+        <h2 className={`${instrumentSerif.className} mt-4 text-2xl text-foreground`}>AI search isn&apos;t available yet</h2>
+        <p className="mx-auto mt-1.5 max-w-md text-sm text-muted">
+          Munia doesn&apos;t have AI web search configured on this deployment yet. The free Scan (Greenhouse, Lever, Ashby, Workday, iCIMS) and your daily Discovery sources stay fully available.
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="rounded-2xl border border-border bg-surface/30 px-6 py-12 text-center">
       <div className="mx-auto grid size-12 place-items-center rounded-full bg-brand-soft text-brand">

@@ -20,6 +20,7 @@ from app.modules.discovery.service import (
     latest_run,
     start_run_task,
 )
+from app.modules.discovery.ai_search import AISearchNotConfigured, AISearchRateLimited, run_ai_search
 from app.modules.discovery.overview import build_sources_overview
 from app.modules.discovery.sources import METHOD_MANUAL, METHOD_REVERSE_ATS, METHOD_WEB_SEARCH, is_reverse_scan_capable
 from app.modules.discovery.watchlist_schemas import WatchedCompanyCreate, WatchedCompanyResponse, WatchedCompanyUpdate
@@ -34,7 +35,7 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 
 class DiscoveryRequest(BaseModel):
     since_days: int = Field(default=7, ge=1, le=30)
-    ats: list[str] = Field(default_factory=lambda: ["greenhouse", "lever", "ashby", "workday"])
+    ats: list[str] = Field(default_factory=lambda: sorted(SUPPORTED_ATS))
     limit_per_ats: int = Field(default=150, ge=1, le=1500)
 
 
@@ -117,6 +118,23 @@ async def add_offers(payload: AddOffersRequest, user: User = Depends(get_current
 @router.get("/sources")
 async def get_sources_overview(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return await build_sources_overview(db, user.id)
+
+
+class AISearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=500)
+
+
+@router.post("/ai-search")
+async def ai_search(payload: AISearchRequest, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db), settings: Settings = Depends(get_settings)):
+    """Hosted Explore AI Search (Phase 5 follow-up) — no CLI, no shared
+    credential; runs server-side using THIS candidate's own encrypted
+    Anthropic key (app.modules.ai_config)."""
+    try:
+        return await run_ai_search(db, settings, user, payload.query)
+    except AISearchNotConfigured:
+        raise HTTPException(status_code=409, detail="AI Search isn't configured for your account yet — add an Anthropic API key in Settings.")
+    except AISearchRateLimited as error:
+        raise HTTPException(status_code=429, detail=f"Please wait {error.retry_after_seconds:.0f}s before searching again.")
 
 
 # ── Company Watchlist (Phase 5 §4) ──────────────────────────────────────────

@@ -82,6 +82,7 @@ type ExploreCtx = {
   discoverAI: () => Promise<void>;
   aiTrace: AiTraceChunk[];
   aiCost: AiCost;
+  hostedAiResult: { ok: boolean; message: string } | null;
 };
 
 const Ctx = createContext<ExploreCtx | null>(null);
@@ -143,6 +144,11 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
   const [aiIntent, setAiIntent] = useState("");
   const [aiTrace, setAiTrace] = useState<AiTraceChunk[]>([]);
   const [aiCost, setAiCost] = useState<AiCost>({ searches: 0, candidates: 0, fetches: 0 });
+  // Hosted (portal-mode) AI Search has no client-visible stream of proposed
+  // offers to review/add — the server already ingests + attaches matches to
+  // this candidate's pipeline in one call — so its outcome is just a short
+  // completion summary, kept separate from the local-CLI streaming state above.
+  const [hostedAiResult, setHostedAiResult] = useState<{ ok: boolean; message: string } | null>(null);
   const runningRef = useRef(false);
   // Generation counter for background-run polling: bump on every new scan/reset
   // so a stale poll loop can never write state after being superseded.
@@ -482,10 +488,38 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // AI search — orchestrate modes/discover.md via the user's CLI, streamed.
+  // Portal (hosted) mode has no local CLI/localStorage concept at all — a
+  // hosted AI Search backend hasn't been built yet, so it goes straight to
+  // "blocked" with hosted-appropriate copy (see explorer-view's BlockedCard)
+  // instead of asking the candidate to connect a CLI that can't work on a
+  // server they don't control.
   const discoverAI = useCallback(async () => {
     if (runningRef.current) return;
     const intent = aiIntentRef.current.trim();
     if (!intent) return;
+    if (portalEnabled) {
+      setHostedAiResult(null);
+      runningRef.current = true;
+      setPhase("casting");
+      setStatus("Searching the web…");
+      try {
+        const result = await portalApi.aiSearch(intent);
+        if (result.status === "ok") {
+          setHostedAiResult({ ok: true, message: result.jobs_found === 0 ? "No genuine postings found for that search." : `Found ${result.jobs_found} posting${result.jobs_found === 1 ? "" : "s"} — ${result.jobs_created} new, added to your Pipeline.` });
+        } else {
+          setHostedAiResult({ ok: false, message: result.error || "AI search failed." });
+        }
+      } catch (error) {
+        // portalApi's request() throws with the backend's `detail` message,
+        // which already reads correctly for both cases the route surfaces:
+        // 409 "AI Search isn't configured..." and 429 "Please wait ...".
+        setHostedAiResult({ ok: false, message: error instanceof Error ? error.message : "AI search failed." });
+      } finally {
+        runningRef.current = false;
+        setPhase("idle");
+      }
+      return;
+    }
     let cliId: string | null = null;
     try {
       cliId = JSON.parse(localStorage.getItem("career-ops:config") || "{}").cliId || null;
@@ -695,9 +729,9 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
       running: phase === "casting" || phase === "scanning" || phase === "revealing" || phase === "hunting",
       offers, sources, matchCount, companiesScanned, companiesAvailable, capHit, droppedNoDate, status, partial, error, scannerMissing, added, adding,
       discover, loadFresh, addToPipeline, applyPatch, reset,
-      mode, setMode, aiIntent, setAiIntent, discoverAI, aiTrace, aiCost,
+      mode, setMode, aiIntent, setAiIntent, discoverAI, aiTrace, aiCost, hostedAiResult,
     }),
-    [filters, setFilters, initFilters, phase, offers, sources, matchCount, companiesScanned, companiesAvailable, capHit, droppedNoDate, status, partial, error, scannerMissing, added, adding, discover, loadFresh, addToPipeline, applyPatch, reset, mode, setMode, aiIntent, discoverAI, aiTrace, aiCost],
+    [filters, setFilters, initFilters, phase, offers, sources, matchCount, companiesScanned, companiesAvailable, capHit, droppedNoDate, status, partial, error, scannerMissing, added, adding, discover, loadFresh, addToPipeline, applyPatch, reset, mode, setMode, aiIntent, discoverAI, aiTrace, aiCost, hostedAiResult],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

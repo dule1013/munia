@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Globe, Loader2, Newspaper, Radar } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { AIConfigPanel } from "@/components/discovery/ai-config-panel";
 import { LinkedInPanel } from "@/components/discovery/linkedin-panel";
 import { WatchlistPanel } from "@/components/discovery/watchlist-panel";
 import { portalApi, type SourceEntry, type SourceMetrics, type SourcesOverview as SourcesOverviewData } from "@/lib/api-client";
@@ -58,6 +59,7 @@ export function SourcesOverview() {
     <div className="space-y-6">
       <LinkedInPanel />
       <WatchlistPanel />
+      <AIConfigPanel />
 
       {network && (
         <Card>

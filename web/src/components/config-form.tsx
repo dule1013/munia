@@ -94,7 +94,7 @@ export function ConfigForm() {
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
-      <h1 className="font-display text-2xl tracking-tight text-landing">Config</h1>
+      <h1 className="font-sans font-semibold text-2xl tracking-tight text-landing">Config</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Run career-ops on your own AI, right on your computer. Your CV and data never leave your machine.
       </p>

@@ -93,7 +93,7 @@ export function ReportView({
         <p className="font-mono text-xs uppercase tracking-[0.18em] text-faint">#{id}</p>
         <div className="mt-2 flex items-center gap-3">
           <CompanyLogo name={company?.logoName ?? meta?.title ?? `Report #${id}`} size={40} />
-          <h1 className="font-display text-3xl tracking-tight text-landing">
+          <h1 className="font-sans font-semibold text-3xl tracking-tight text-landing">
             {company?.label ?? meta?.title ?? `Report #${id}`}
           </h1>
         </div>

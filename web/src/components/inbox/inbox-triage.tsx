@@ -51,13 +51,22 @@ export function InboxTriage({ inbox }: { inbox: InboxJob[] }) {
     try {
       const s = localStorage.getItem(reviewQueueKey);
       if (s) setShortlist(JSON.parse(s));
-      const c = localStorage.getItem(CONFIG_KEY);
-      setHasCli(!!(c && JSON.parse(c).cliId));
+      if (!portalEnabled) {
+        const c = localStorage.getItem(CONFIG_KEY);
+        setHasCli(!!(c && JSON.parse(c).cliId));
+      }
+      // Portal (hosted) mode: manual "Evaluate" scoring here spawns a local
+      // CLI subprocess (startJob -> /api/run) that has no hosted equivalent
+      // at all yet — showing "No AI configured" (implying the candidate just
+      // needs to set something up) would be actively misleading for someone
+      // who genuinely has a hosted Anthropic key configured, since clicking
+      // through would still silently fail. hasCli stays false here on
+      // purpose; ShortlistTray shows portal-specific copy instead (below).
     } catch {
       /* ignore */
     }
     setLoaded(true);
-  }, [reviewQueueKey]);
+  }, [reviewQueueKey, portalEnabled]);
   useEffect(() => {
     if (loaded) try { localStorage.setItem(reviewQueueKey, JSON.stringify(shortlist)); } catch { /* quota */ }
   }, [shortlist, loaded, reviewQueueKey]);
@@ -291,6 +300,8 @@ export function InboxTriage({ inbox }: { inbox: InboxJob[] }) {
         items={shortlist}
         estimate={estimate}
         hasCli={hasCli}
+        portalEnabled={portalEnabled}
+        configHref={portalEnabled ? "/discovery" : "/config"}
         onRemove={(url) => setShortlist((s) => s.filter((x) => x.url !== url))}
         onClear={() => setShortlist([])}
         onScore={scoreShortlist}

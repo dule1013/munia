@@ -81,7 +81,7 @@ export function CvEditor(props: Props) {
       <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-display text-3xl tracking-tight text-landing">{title}</h1>
+            <h1 className="font-sans font-semibold text-3xl tracking-tight text-landing">{title}</h1>
             {tailored ? <Badge tone="muted">Tailored CV</Badge> : <Badge tone="good">Source of truth</Badge>}
             {manuallyEdited && <Badge tone="warn">Manually edited</Badge>}
           </div>

@@ -27,7 +27,7 @@ export function ProfileSettings({ candidate }: { candidate: CandidateProfile }) 
 
   return (
     <div className="mx-auto w-full max-w-[120rem] px-6 py-10 lg:px-8">
-      <h1 className="font-display text-3xl tracking-tight text-landing">Profile and search preferences</h1>
+      <h1 className="font-sans font-semibold text-3xl tracking-tight text-landing">Profile and search preferences</h1>
       <p className="mt-2 text-sm text-muted-foreground">These candidate-specific settings drive discovery, triage, and evaluation.</p>
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         <Field label="Name" value={String(candidateData.full_name || candidate.user.name)} onChange={(value) => update("candidate", "full_name", value)} />

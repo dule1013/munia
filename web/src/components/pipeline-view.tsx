@@ -123,7 +123,7 @@ export function PipelineView({
     <div className="mx-auto w-full max-w-[120rem] px-4 py-6 sm:px-6 sm:py-8 max-sm:pb-24">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl tracking-tight text-landing">Pipeline</h1>
+          <h1 className="font-sans font-semibold text-2xl tracking-tight text-landing">Pipeline</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             <span className="tabular-nums">{pendingInbox.length}</span> in inbox ·{" "}
             <span className="tabular-nums">{applications.length}</span> tracked

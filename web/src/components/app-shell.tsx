@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <WorkerPills />
+          {!portalEnabled && <WorkerPills />}
 
           <div className="mt-auto space-y-3 pt-4">
             {!portalEnabled && <UsageMeter />}

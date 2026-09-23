@@ -13,7 +13,7 @@ export function CvLibrary({ master, tailored }: { master: { name: string; modifi
   return (
     <div className="mx-auto w-full max-w-[120rem] px-4 py-8 sm:px-6 lg:px-8">
       <header>
-        <h1 className="font-display text-3xl tracking-tight text-landing">CV workspace</h1>
+        <h1 className="font-sans font-semibold text-3xl tracking-tight text-landing">CV workspace</h1>
         <p className="mt-1 text-sm text-muted-foreground">Keep your factual master separate from job-specific application documents.</p>
       </header>
 

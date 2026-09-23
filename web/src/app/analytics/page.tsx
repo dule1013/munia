@@ -54,7 +54,7 @@ export default async function Analytics() {
 
   return (
     <div className="mx-auto w-full max-w-[120rem] px-6 py-10">
-      <h1 className="font-display text-2xl tracking-tight text-landing">Analytics</h1>
+      <h1 className="font-sans font-semibold text-2xl tracking-tight text-landing">Analytics</h1>
       <p className="mt-1 text-sm text-muted-foreground">Across {total} tracked evaluations.</p>
 
       {/* headline stats */}

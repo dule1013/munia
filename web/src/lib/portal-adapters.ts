@@ -5,6 +5,29 @@ export function candidateJobsToLegacy(items: CandidateJob[]): { inbox: InboxJob[
   const inbox: InboxJob[] = [];
   const applications: Application[] = [];
   for (const item of items) {
+    // A location-ineligible job is functionally discarded by the backend's
+    // own location gate (apply_location_eligibility) even though its
+    // pipeline_status stays "Inbox" — GET /pipeline/inbox (the properly
+    // filtered endpoint) excludes it, but PipelinePage's "ALL"/other-tabs
+    // view is built from the raw, unfiltered GET /pipeline response, so it
+    // must exclude the same rows here to avoid the geographically
+    // incompatible jobs the location gate was built to remove from
+    // reappearing in the one Inbox list a candidate actually looks at.
+    if (item.pipeline_status.toLowerCase() === "inbox" && !item.skipped && item.eligibility === "ineligible") {
+      applications.push({
+        n: item.id,
+        date: item.job.first_seen_at.slice(0, 10),
+        company: item.job.company,
+        via: "",
+        role: item.job.title,
+        score: "",
+        status: "Discarded",
+        pdf: "",
+        report: "",
+        notes: item.triage_reason || "Location incompatible",
+      });
+      continue;
+    }
     if (item.pipeline_status.toLowerCase() === "inbox" && !item.skipped) {
       inbox.push({
         candidateJobId: item.id,

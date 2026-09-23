@@ -45,7 +45,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
               <><X className="size-3 text-red-400" /> error</>
             )}
           </p>
-          <h1 className="mt-2 font-display text-2xl tracking-tight text-landing">{job.title}</h1>
+          <h1 className="mt-2 font-sans font-semibold text-2xl tracking-tight text-landing">{job.title}</h1>
           {job.subtitle && <p className="mt-1 text-sm text-muted-foreground">{job.subtitle}</p>}
           {job.result?.score != null && (
             <div className="mt-3 flex flex-wrap items-center gap-2.5">

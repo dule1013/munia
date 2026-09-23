@@ -20,7 +20,7 @@ export default function JobsHistory() {
     <div className="mx-auto w-full max-w-[120rem] px-6 py-10">
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="font-display text-2xl tracking-tight text-landing">Workers</h1>
+          <h1 className="font-sans font-semibold text-2xl tracking-tight text-landing">Workers</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Every evaluation you ran — a persistent log. <span className="tabular-nums">{jobs.length}</span> total.
           </p>

@@ -196,7 +196,7 @@ export function FollowupsView() {
     <div className="mx-auto max-w-none px-6 py-8">
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl tracking-tight text-landing">Follow-up Tracker</h1>
+          <h1 className="font-sans font-semibold text-2xl tracking-tight text-landing">Follow-up Tracker</h1>
           <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <div className="relative w-56 max-w-[35vw]">

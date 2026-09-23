@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { CompanyLogo } from "@/components/company-logo";
 import { JobProvenance } from "@/components/discovery/job-provenance";
-import { instrumentSerif } from "@/lib/fonts";
 import { portalApi, type CandidateJob, type TodaySummary } from "@/lib/api-client";
 
 function daysAgo(iso: string | null): string | null {
@@ -43,7 +42,7 @@ export function TodayView() {
     <div className="mx-auto w-full max-w-[120rem] px-6 py-8">
       <div className="flex items-center gap-3">
         <Sparkles className="size-6 text-brand" />
-        <h1 className={`${instrumentSerif.className} text-3xl text-landing`}>Today</h1>
+        <h1 className="font-sans text-3xl font-semibold tracking-tight text-landing">Today</h1>
       </div>
       {summary && (
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

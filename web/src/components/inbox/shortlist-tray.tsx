@@ -22,6 +22,8 @@ export function ShortlistTray({
   items,
   estimate,
   hasCli,
+  portalEnabled = false,
+  configHref = "/config",
   onRemove,
   onClear,
   onScore,
@@ -29,6 +31,15 @@ export function ShortlistTray({
   items: ShortItem[];
   estimate: { tokens?: number; usd?: number };
   hasCli: boolean;
+  /** Manual per-job "Evaluate" scoring runs a local CLI subprocess with no
+   * hosted equivalent yet — shows honest "not available" copy instead of
+   * "not configured" (which would wrongly imply the candidate just needs to
+   * set something up, when clicking through would still silently fail). */
+  portalEnabled?: boolean;
+  /** Where "Set up" sends the candidate — local mode's CLI lives under
+   * /config, but hosted (portal) mode's AI configuration is the AIConfigPanel
+   * on /discovery, not /config at all. */
+  configHref?: string;
   onRemove: (url: string) => void;
   onClear: () => void;
   onScore: () => void;
@@ -97,7 +108,7 @@ export function ShortlistTray({
                   <span className="hidden text-xs font-normal text-brand-foreground/80 sm:inline">· {costText}</span>
                 </button>
               ) : (
-                <ConfirmScore n={n} costText={costText} hasCli={hasCli} onCancel={() => setConfirming(false)} onConfirm={() => { setConfirming(false); onScore(); }} />
+                <ConfirmScore n={n} costText={costText} hasCli={hasCli} portalEnabled={portalEnabled} configHref={configHref} onCancel={() => setConfirming(false)} onConfirm={() => { setConfirming(false); onScore(); }} />
               )}
             </div>
           </div>
@@ -117,20 +128,34 @@ function ConfirmScore({
   n,
   costText,
   hasCli,
+  portalEnabled,
+  configHref,
   onCancel,
   onConfirm,
 }: {
   n: number;
   costText: string;
   hasCli: boolean;
+  portalEnabled: boolean;
+  configHref: string;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  if (!hasCli && portalEnabled) {
+    return (
+      <div className="flex items-center gap-2 text-xs">
+        <span className="text-muted-foreground">Manual scoring isn&apos;t available in hosted mode yet — Munia scores automatically every morning.</span>
+        <button type="button" onClick={onCancel} className="text-faint hover:text-foreground max-sm:min-h-[44px]">
+          Dismiss
+        </button>
+      </div>
+    );
+  }
   if (!hasCli) {
     return (
       <div className="flex items-center gap-2 text-xs">
         <span className="text-muted-foreground">No AI configured.</span>
-        <Link href="/config" className="inline-flex items-center gap-1 rounded-full border border-brand/40 bg-brand-soft px-3 py-1.5 font-medium text-brand max-sm:min-h-[44px]">
+        <Link href={configHref} className="inline-flex items-center gap-1 rounded-full border border-brand/40 bg-brand-soft px-3 py-1.5 font-medium text-brand max-sm:min-h-[44px]">
           <Settings className="size-3.5" /> Set up
         </Link>
         <button type="button" onClick={onCancel} className="text-faint hover:text-foreground max-sm:min-h-[44px]">

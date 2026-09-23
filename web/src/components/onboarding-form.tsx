@@ -38,7 +38,7 @@ export function OnboardingForm() {
 
   return (
     <main className="mx-auto w-full max-w-[120rem] px-6 py-10 lg:px-8">
-      <h1 className="font-display text-3xl tracking-tight text-landing">Set up your job search</h1>
+      <h1 className="font-sans font-semibold text-3xl tracking-tight text-landing">Set up your job search</h1>
       <p className="mt-2 text-sm text-muted-foreground">Career Ops uses only the facts and preferences you provide here.</p>
       <form onSubmit={submit} className="mt-8 space-y-6">
         <div className="grid gap-4 sm:grid-cols-2">

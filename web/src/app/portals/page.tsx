@@ -10,7 +10,7 @@ export default function PortalsPage() {
     <div className="mx-auto w-full max-w-[120rem] px-6 py-8 lg:px-8">
       <div className="flex items-center gap-3">
         <Radar className="size-6 text-brand" />
-        <h1 className="font-display text-2xl tracking-tight text-landing">Portals</h1>
+        <h1 className="font-sans font-semibold text-2xl tracking-tight text-landing">Portals</h1>
       </div>
       {portalEnabled ? (
         <p className="mt-6 max-w-xl rounded-xl border border-dashed border-border bg-surface/30 p-4 text-sm text-muted-foreground">

@@ -9,7 +9,18 @@
 // belongs here once it actually has a full-network dataset scan-ats-full.mjs
 // can walk, not just because a Career Ops provider module exists for it.
 export type AtsSource = "greenhouse" | "lever" | "ashby" | "workday" | "icims";
-export const ATS_SOURCES: AtsSource[] = ["greenhouse", "lever", "ashby", "workday", "icims"];
+// Workday is temporarily excluded from the selectable/default Explore scan
+// sources (kept in AtsSource/ATS_LABEL so already-discovered workday-sourced
+// jobs still render correctly elsewhere) — it is dramatically slower than
+// the other four ATS providers (production morning runs: ~25-30 min for as
+// few as 100 companies vs. under 3 min each for Greenhouse/Lever/Ashby/
+// iCIMS at their full default batch sizes), and since a manual Explore scan
+// walks every selected source sequentially in one subprocess under one
+// shared timeout (RUN_TIMEOUT_SECONDS = 1500s), including it turns what's
+// advertised as a quick, free interactive action into a near-certain
+// timeout with almost nothing scanned. Revisit once Workday's own runtime
+// is addressed (tracked separately, not fixed here).
+export const ATS_SOURCES: AtsSource[] = ["greenhouse", "lever", "ashby", "icims"];
 export const ATS_LABEL: Record<AtsSource, string> = {
   greenhouse: "Greenhouse",
   lever: "Lever",

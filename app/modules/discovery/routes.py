@@ -59,8 +59,21 @@ def _run_out(run: DiscoveryRun) -> DiscoveryRunOut:
     return DiscoveryRunOut(id=run.id, status=run.status, request=run.request or {}, result=run.result, error=run.error, created_at=run.created_at, started_at=run.started_at, finished_at=run.finished_at)
 
 
+# Workday is temporarily excluded from the interactive manual scan route
+# specifically (defense-in-depth alongside web/src/lib/explore.ts, which
+# already omits it from the selectable/default source list) — a manual scan
+# walks every selected source sequentially in one subprocess under one
+# shared RUN_TIMEOUT_SECONDS, and Workday's own runtime (production morning
+# runs: ~25-30 min for as few as 100 companies) reliably consumes that whole
+# budget, timing out the entire request instead of leaving the other four
+# fast sources' results usable. The automated morning cycle is unaffected —
+# it scans each source in its own isolated call and already tolerates a
+# slow/failing Workday without losing the others.
+DISABLED_MANUAL_SCAN_ATS: frozenset[str] = frozenset({"workday"})
+
+
 async def _launch(payload: DiscoveryRequest, user: User, db: AsyncSession, settings: Settings) -> DiscoveryRun:
-    allowed = [ats for ats in payload.ats if ats in SUPPORTED_ATS]
+    allowed = [ats for ats in payload.ats if ats in SUPPORTED_ATS and ats not in DISABLED_MANUAL_SCAN_ATS]
     if not allowed:
         raise HTTPException(status_code=400, detail="no supported ATS selected")
     active = await latest_run(db, user.id)

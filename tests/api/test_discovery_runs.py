@@ -64,6 +64,44 @@ async def test_run_lifecycle_does_not_hold_session_during_scan(api, monkeypatch,
     assert run["finished_at"] is not None
 
 
+async def test_manual_scan_excludes_workday_even_when_explicitly_requested(api, monkeypatch, tmp_path):
+    """Workday is temporarily disabled for the interactive manual scan route
+    (production finding: it reliably consumes the entire RUN_TIMEOUT_SECONDS
+    budget on its own, timing out the whole request) — even a client that
+    explicitly asks for it should get the other requested sources, not a
+    guaranteed-to-time-out run."""
+    client, sessions, settings = api
+    await seed_user(sessions)
+    captured_ats = {}
+
+    async def fake_prepare(db, user_id, settings):
+        return tmp_path
+
+    async def fake_run(ws, settings, script, *arguments, timeout=900):
+        if "--ats" in arguments:
+            captured_ats["value"] = arguments[arguments.index("--ats") + 1]
+        return CommandResult(0, SUCCESS_PAYLOAD, "")
+
+    monkeypatch.setattr(service, "prepare_workspace", fake_prepare)
+    monkeypatch.setattr(service, "run_in_workspace", fake_run)
+
+    response = await client.post("/api/v1/discovery/runs", headers=headers("clerk-a"), json={"since_days": 7, "ats": ["greenhouse", "workday", "ashby"], "limit_per_ats": 10})
+    assert response.status_code == 202
+    run_id = response.json()["id"]
+    await execute_run(uuid.UUID(run_id), settings, session_factory=sessions)
+
+    assert "workday" not in captured_ats["value"].split(",")
+    assert "greenhouse" in captured_ats["value"].split(",")
+    assert "ashby" in captured_ats["value"].split(",")
+
+
+async def test_manual_scan_requesting_only_workday_is_rejected(api):
+    client, sessions, settings = api
+    await seed_user(sessions)
+    response = await client.post("/api/v1/discovery/runs", headers=headers("clerk-a"), json={"since_days": 7, "ats": ["workday"], "limit_per_ats": 10})
+    assert response.status_code == 400
+
+
 async def test_failed_scan_marks_run_failed(api, monkeypatch, tmp_path):
     client, sessions, settings = api
     await seed_user(sessions)

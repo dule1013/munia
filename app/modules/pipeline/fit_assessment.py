@@ -14,13 +14,12 @@ import json
 import re
 from datetime import datetime, timezone
 
-import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.modules.ai_config import service as ai_config_service
+from app.modules.ai_config.anthropic_client import call_anthropic
 from app.modules.candidates.service import get_profile
-from app.modules.discovery.ai_search import ANTHROPIC_API_URL, ANTHROPIC_VERSION
 from app.modules.jobs.models import Job
 from app.modules.pipeline.models import CandidateJob
 from app.modules.pipeline.service import has_candidate_decision
@@ -85,24 +84,13 @@ async def assess_fit(db: AsyncSession, settings: Settings, item: CandidateJob, j
     if config is None:
         raise NoAIConfigured("candidate has no AI provider configured")
 
-    api_key = ai_config_service.decrypt_api_key(settings, config)
     profile = await get_profile(db, item.user_id)
     prompt = build_assessment_prompt(_profile_summary(profile.profile if profile else {}), job)
 
-    payload = {"model": config.model, "max_tokens": 300, "messages": [{"role": "user", "content": prompt}]}
-    headers = {"x-api-key": api_key, "anthropic-version": ANTHROPIC_VERSION, "content-type": "application/json"}
-
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.post(ANTHROPIC_API_URL, json=payload, headers=headers)
-    except httpx.HTTPError:
+    result = await call_anthropic(settings, config, messages=[{"role": "user", "content": prompt}], max_tokens=300, timeout=30)
+    if result.status != "ok":
         return None
-    if response.status_code != 200:
-        return None
-
-    body = response.json()
-    text = "".join(block.get("text", "") for block in body.get("content", []) if isinstance(block, dict) and block.get("type") == "text")
-    return parse_assessment(text)
+    return parse_assessment(result.text)
 
 
 async def apply_assessment(db: AsyncSession, item: CandidateJob, assessment: dict, *, run_id=None) -> None:

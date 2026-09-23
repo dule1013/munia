@@ -87,7 +87,7 @@ async def test_morning_run_isolates_a_failing_ats_source(api, monkeypatch):
 
     monkeypatch.setattr(automation_batch, "run_for_candidate", flaky)
     monkeypatch.setattr(automation_batch, "watchlist_all", fake_watchlist_all)
-    monkeypatch.setattr(automation_batch, "_triage_one_candidate", fake_triage_marks_everything_triaged)
+    monkeypatch.setattr(automation_batch, "triage_candidate_hosted", fake_triage_marks_everything_triaged)
 
     async with sessions() as db:
         result = await automation_batch.morning_run(db, settings)
@@ -105,7 +105,7 @@ async def test_morning_run_isolates_a_failing_candidate(api, monkeypatch):
     await seed_user(sessions, "clerk-b")
     monkeypatch.setattr(automation_batch, "run_for_candidate", fake_run_for_candidate_ok)
     monkeypatch.setattr(automation_batch, "watchlist_all", fake_watchlist_all)
-    monkeypatch.setattr(automation_batch, "_triage_one_candidate", fake_triage_marks_everything_triaged)
+    monkeypatch.setattr(automation_batch, "triage_candidate_hosted", fake_triage_marks_everything_triaged)
 
     async def flaky_cycle(db, settings, user, run_id):
         if user.clerk_user_id == "clerk-a":
@@ -129,7 +129,7 @@ async def test_morning_run_skips_ai_cleanly_when_candidate_has_no_config(api, mo
     await seed_user(sessions)
     monkeypatch.setattr(automation_batch, "run_for_candidate", fake_run_for_candidate_ok)
     monkeypatch.setattr(automation_batch, "watchlist_all", fake_watchlist_all)
-    monkeypatch.setattr(automation_batch, "_triage_one_candidate", fake_triage_marks_everything_triaged)
+    monkeypatch.setattr(automation_batch, "triage_candidate_hosted", fake_triage_marks_everything_triaged)
 
     async with sessions() as db:
         result = await automation_batch.morning_run(db, settings)
@@ -147,7 +147,7 @@ async def test_morning_run_invalid_ai_key_does_not_affect_other_candidates(api, 
     await client.put("/api/v1/ai-config", headers={"x-test-clerk-user-id": "clerk-a"}, json={"model": "claude-haiku-4-5-20251001", "api_key": "sk-ant-bad"})
     monkeypatch.setattr(automation_batch, "run_for_candidate", fake_run_for_candidate_ok)
     monkeypatch.setattr(automation_batch, "watchlist_all", fake_watchlist_all)
-    monkeypatch.setattr(automation_batch, "_triage_one_candidate", fake_triage_marks_everything_triaged)
+    monkeypatch.setattr(automation_batch, "triage_candidate_hosted", fake_triage_marks_everything_triaged)
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_anthropic("unauthorized", status_code=401))
 
     async with sessions() as db:
@@ -164,7 +164,7 @@ async def test_all_five_ats_sources_attempted_in_one_morning_run(api, monkeypatc
     await seed_user(sessions)
     monkeypatch.setattr(automation_batch, "run_for_candidate", fake_run_for_candidate_ok)
     monkeypatch.setattr(automation_batch, "watchlist_all", fake_watchlist_all)
-    monkeypatch.setattr(automation_batch, "_triage_one_candidate", fake_triage_marks_everything_triaged)
+    monkeypatch.setattr(automation_batch, "triage_candidate_hosted", fake_triage_marks_everything_triaged)
 
     async with sessions() as db:
         result = await automation_batch.morning_run(db, settings)
@@ -197,7 +197,7 @@ async def test_location_classifier_participates_and_ineligible_never_reaches_ass
 
     monkeypatch.setattr(automation_batch, "run_for_candidate", fake_run_for_candidate_ok)
     monkeypatch.setattr(automation_batch, "watchlist_all", fake_watchlist_all)
-    monkeypatch.setattr(automation_batch, "_triage_one_candidate", fake_triage_marks_everything_triaged)
+    monkeypatch.setattr(automation_batch, "triage_candidate_hosted", fake_triage_marks_everything_triaged)
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_anthropic('{"fit": "strong", "reason": "great match", "confidence": "high"}'))
 
     async with sessions() as db:
@@ -239,7 +239,7 @@ async def test_new_count_is_tied_to_the_completed_morning_run(api, monkeypatch):
 
     monkeypatch.setattr(automation_batch, "run_for_candidate", fake_run_for_candidate_ok)
     monkeypatch.setattr(automation_batch, "watchlist_all", fake_watchlist_all)
-    monkeypatch.setattr(automation_batch, "_triage_one_candidate", fake_triage_marks_everything_triaged)
+    monkeypatch.setattr(automation_batch, "triage_candidate_hosted", fake_triage_marks_everything_triaged)
     monkeypatch.setattr(httpx.AsyncClient, "post", fake_anthropic('{"fit": "strong", "reason": "great match", "confidence": "high"}'))
 
     async with sessions() as db:

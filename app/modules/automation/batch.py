@@ -26,6 +26,7 @@ from app.modules.jobs.models import Job
 from app.modules.migration.parsers import pipeline_rows, shortlist_rows
 from app.modules.migration.service import import_pipeline
 from app.modules.pipeline.fit_assessment import NoAIConfigured, apply_assessment, assess_fit
+from app.modules.pipeline.hosted_triage import triage_candidate_hosted
 from app.modules.pipeline.models import CandidateJob
 from app.modules.pipeline.service import INBOX_TRIAGE_RESULTS, apply_location_eligibility, has_candidate_decision
 
@@ -300,14 +301,16 @@ async def _candidate_morning_cycle(db: AsyncSession, settings: Settings, user: U
     except Exception as error:
         result["location_error"] = str(error)[:500]
 
-    # Cheap candidate-specific triage — runs regardless of AI config (it's
-    # the existing CLI-agent-based triage, independent of a candidate's own
-    # Anthropic key). Reported separately in the summary so a triage
-    # failure (e.g. the triage agent being unavailable on this deployment)
-    # is diagnosable on its own, distinct from an AI-discovery/assessment
-    # failure. persist_triage_results itself skips anything already
-    # triaged (triaged_at set) or human-decided — see its own guard.
-    triage_outcome = await _triage_one_candidate(db, settings, user.id)
+    # Cheap candidate-specific triage — hosted architecture (Phase 5 follow-
+    # up correction): this candidate's own Anthropic key, NOT the CLI-agent
+    # path (automation.batch.triage_all/_run_agent, which needs the `claude`
+    # binary — deliberately not installed in Dockerfile.api). No AI
+    # configured -> "skipped_not_configured", not an error; the run still
+    # completes normally. Reported separately in the summary so a triage
+    # failure is diagnosable on its own, distinct from an AI-discovery/
+    # assessment failure. triage_candidate_hosted itself skips anything
+    # already triaged (triaged_at set), location-ineligible, or human-decided.
+    triage_outcome = await triage_candidate_hosted(db, settings, user.id)
     result["triage"] = triage_outcome
 
     # Lightweight fit assessment — only for jobs that (a) actually went

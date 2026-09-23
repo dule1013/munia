@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -188,6 +189,10 @@ async def apply_location_eligibility(db: AsyncSession, user_id: uuid.UUID) -> in
         if tier == "ineligible":
             item.triage_result = "discard"
             item.triage_reason = reason
+            # Effectively already "triaged" by location alone — never needs
+            # AI triage/fit-assessment, and must not sit in a queryable
+            # "still needs triage" (triaged_at IS NULL) state forever.
+            item.triaged_at = datetime.now(timezone.utc)
         classified += 1
     await db.commit()
     return classified

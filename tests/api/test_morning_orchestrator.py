@@ -107,7 +107,7 @@ async def test_morning_run_isolates_a_failing_candidate(api, monkeypatch):
     monkeypatch.setattr(automation_batch, "watchlist_all", fake_watchlist_all)
     monkeypatch.setattr(automation_batch, "triage_candidate_hosted", fake_triage_marks_everything_triaged)
 
-    async def flaky_cycle(db, settings, user, run_id):
+    async def flaky_cycle(db, settings, user, run_id, *, disable_ai=False):
         if user.clerk_user_id == "clerk-a":
             raise RuntimeError("boom")
         return {"ai_status": "skipped_not_configured", "location_classified": 0, "fit_assessed": 0}
@@ -252,6 +252,42 @@ async def test_new_count_is_tied_to_the_completed_morning_run(api, monkeypatch):
         summary = await today_summary(db, user.id)
     assert summary["current"] == 1
     assert summary["new"] == 1
+
+
+async def test_disable_ai_flag_skips_every_ai_step_but_still_runs_free_discovery_and_location(api, monkeypatch):
+    """The controlled-first-run escape hatch (Phase 5 follow-up §6): even a
+    candidate WITH AI configured must see zero Anthropic calls when
+    disable_ai=True, while location eligibility and cursor advancement
+    still run normally."""
+    client, sessions, settings = api
+    settings.integration_encryption_key = generate_key()
+    user = await seed_user(sessions, "clerk-a")
+    await client.put("/api/v1/ai-config", headers={"x-test-clerk-user-id": "clerk-a"}, json={"model": "claude-haiku-4-5-20251001", "api_key": "sk-ant-fake"})
+    monkeypatch.setattr(automation_batch, "run_for_candidate", fake_run_for_candidate_ok)
+    monkeypatch.setattr(automation_batch, "watchlist_all", fake_watchlist_all)
+
+    called = False
+
+    async def fail_if_called(self, url, *args, **kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("disable_ai=True must never call Anthropic")
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", fail_if_called)
+
+    async with sessions() as db:
+        result = await automation_batch.morning_run(db, settings, disable_ai=True)
+
+    assert called is False
+    candidate = result["summary"]["candidates"][str(user.id)]
+    assert candidate["ai_status"] == "disabled_for_controlled_run"
+    assert candidate["triage"]["status"] == "disabled_for_controlled_run"
+    assert result["status"] == "completed"  # disabling AI is not itself a warning
+    # free/deterministic work still ran
+    async with sessions() as db:
+        for ats in ("greenhouse", "lever", "ashby", "workday", "icims"):
+            cursor = await get_or_create_cursor(db, ats)
+            assert cursor.next_offset > 0
 
 
 async def test_production_mode_routing_is_unaffected_by_automation_changes(api):

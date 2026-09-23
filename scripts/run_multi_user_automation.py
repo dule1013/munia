@@ -14,11 +14,12 @@ from app.modules.automation.batch import direct_discovery, level3_all, linkedin_
 async def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["daily", "morning", "greenhouse", "lever", "ashby", "workday", "icims", "level3", "triage", "linkedin", "watchlist"])
+    parser.add_argument("--no-ai", action="store_true", help="morning mode only: a controlled run with every AI-dependent step disabled (zero paid Anthropic calls) — see automation.batch.morning_run(disable_ai=...)")
     args = parser.parse_args()
     settings = get_settings()
     async with SessionLocal() as db:
         if args.mode == "morning":
-            result = await morning_run(db, settings)
+            result = await morning_run(db, settings, disable_ai=args.no_ai)
         elif args.mode == "daily":
             result = await direct_discovery(db, settings)
         elif args.mode == "level3":

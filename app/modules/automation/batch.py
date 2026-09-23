@@ -265,18 +265,28 @@ async def level3_all(db: AsyncSession, settings: Settings) -> dict[str, int]:
     return {"users": len(users), "completed": completed}
 
 
-async def _candidate_morning_cycle(db: AsyncSession, settings: Settings, user: User, run_id: uuid.UUID) -> dict:
+async def _candidate_morning_cycle(db: AsyncSession, settings: Settings, user: User, run_id: uuid.UUID, *, disable_ai: bool = False) -> dict:
     """Per-candidate steps 4/6/8 of the morning cycle (Phase 5 follow-up
     §E/§6): AI/web discovery, location eligibility, lightweight fit
     assessment — everything candidate-specific, as opposed to the shared
     reverse-ATS/watchlist work already done once globally before this runs.
     A candidate with no AI configured (or an invalid/exhausted key) simply
     skips the AI-dependent steps with a clear status; it never raises past
-    this function, so one candidate's AI trouble can't affect another's."""
+    this function, so one candidate's AI trouble can't affect another's.
+
+    `disable_ai` is a temporary, explicit escape hatch for a controlled
+    first production run — NOT a permanent redesign. When True, every
+    AI-dependent step is skipped with status "disabled_for_controlled_run"
+    (distinct from "skipped_not_configured", so the two reasons stay
+    diagnosable) regardless of whether the candidate has a key configured.
+    Location eligibility and cheap-triage-independent steps are unaffected.
+    """
     result: dict = {"ai_discovery": None, "location_classified": 0, "triage": None, "fit_assessed": 0}
 
-    ai_config = await ai_config_service.get_ai_config(db, user.id)
-    if ai_config is None:
+    ai_config = None if disable_ai else await ai_config_service.get_ai_config(db, user.id)
+    if disable_ai:
+        result["ai_status"] = "disabled_for_controlled_run"
+    elif ai_config is None:
         result["ai_status"] = "skipped_not_configured"
     else:
         try:
@@ -290,6 +300,7 @@ async def _candidate_morning_cycle(db: AsyncSession, settings: Settings, user: U
         except AISearchRateLimited:
             result["ai_status"] = "skipped_rate_limited"
         except Exception as error:
+            await db.rollback()
             result["ai_status"] = "error"
             result["ai_error"] = str(error)[:500]
 
@@ -299,6 +310,7 @@ async def _candidate_morning_cycle(db: AsyncSession, settings: Settings, user: U
     try:
         result["location_classified"] = await apply_location_eligibility(db, user.id)
     except Exception as error:
+        await db.rollback()
         result["location_error"] = str(error)[:500]
 
     # Cheap candidate-specific triage — hosted architecture (Phase 5 follow-
@@ -310,8 +322,10 @@ async def _candidate_morning_cycle(db: AsyncSession, settings: Settings, user: U
     # failure is diagnosable on its own, distinct from an AI-discovery/
     # assessment failure. triage_candidate_hosted itself skips anything
     # already triaged (triaged_at set), location-ineligible, or human-decided.
-    triage_outcome = await triage_candidate_hosted(db, settings, user.id)
-    result["triage"] = triage_outcome
+    if disable_ai:
+        result["triage"] = {"status": "disabled_for_controlled_run", "triaged": 0}
+    else:
+        result["triage"] = await triage_candidate_hosted(db, settings, user.id)
 
     # Lightweight fit assessment — only for jobs that (a) actually went
     # through REAL triage (triaged_at set — never the fresh "uncertain"
@@ -343,6 +357,7 @@ async def _candidate_morning_cycle(db: AsyncSession, settings: Settings, user: U
             except NoAIConfigured:
                 break  # key was removed mid-loop; stop this candidate's assessments, not the run
             except Exception:
+                await db.rollback()
                 continue  # one bad job assessment must not stop the rest of this candidate's queue
             if assessment:
                 await apply_assessment(db, item, assessment, run_id=run_id)
@@ -353,7 +368,7 @@ async def _candidate_morning_cycle(db: AsyncSession, settings: Settings, user: U
     return result
 
 
-async def morning_run(db: AsyncSession, settings: Settings) -> dict:
+async def morning_run(db: AsyncSession, settings: Settings, *, disable_ai: bool = False) -> dict:
     """The single top-level automation Railway schedules (Phase 5 follow-up
     §5): LinkedIn -> Watchlist -> rotating ATS slices (shared/global work,
     done once) -> per-candidate AI discovery/location/fit-assessment
@@ -366,9 +381,15 @@ async def morning_run(db: AsyncSession, settings: Settings) -> dict:
     "completed_with_warnings" becomes eligible as the reference run for
     Today's "N new" count (see pipeline.service.today_summary) — a "failed"
     run is never used as that reference.
+
+    `disable_ai`: a temporary, explicit flag for a controlled first
+    production run with zero paid AI calls (Phase 5 follow-up §6) — not a
+    permanent mode. Free discovery/location/run-tracking are fully
+    exercised; every AI-dependent step reports
+    "disabled_for_controlled_run" instead of running.
     """
-    run = MorningRun(id=uuid.uuid4(), status="running")
-    db.add(run)
+    run_id = uuid.uuid4()
+    db.add(MorningRun(id=run_id, status="running"))
     await db.commit()
 
     summary: dict = {"sources": {}, "candidates": {}}
@@ -380,38 +401,70 @@ async def morning_run(db: AsyncSession, settings: Settings) -> dict:
         if outcome.get("status") == "error":
             had_warning = True
 
+    # Every `except Exception` below rolls the session back before
+    # recording the failure and moving on — NOT optional defensive
+    # boilerplate. A DB-level error mid-step (e.g. a stale/expired
+    # connection after a long-running ATS subprocess, a constraint
+    # violation) leaves the session in SQLAlchemy's "pending rollback"
+    # state; reusing it for the NEXT source/candidate without rolling back
+    # first raises PendingRollbackError immediately, silently destroying
+    # the per-source/per-candidate isolation this whole function exists to
+    # guarantee. (Found by exactly this happening in production: a
+    # long-running Workday scan's DB error cascaded and crashed the entire
+    # rest of the run, including every candidate's cycle.)
     try:
         summary["sources"]["linkedin"] = await linkedin_alert_sync_all(db, settings)
     except Exception as error:
+        await db.rollback()
         record_source("linkedin", {"status": "error", "error": str(error)[:500]})
 
     try:
         summary["sources"]["watchlist"] = await watchlist_all(db, settings)
     except Exception as error:
+        await db.rollback()
         record_source("watchlist", {"status": "error", "error": str(error)[:500]})
 
     for ats in sorted(REVERSE_SCAN_SOURCES):
         try:
             record_source(ats, await rotating_reverse_discovery(db, settings, ats))
         except Exception as error:
+            await db.rollback()
             record_source(ats, {"status": "error", "error": str(error)[:500]})
 
-    users = list(await db.scalars(select(User).order_by(User.created_at)))
-    for user in users:
+    # IDs captured immediately, before the loop — db.rollback() expires
+    # EVERY ORM object already in the session's identity map, not just the
+    # one involved in that particular failure. Without this, candidate 2's
+    # `user` object (loaded together with everyone else in the query below)
+    # would already be expired by candidate 1's rollback, and simply
+    # accessing user.id for candidate 2 would hit the same async-lazy-load
+    # failure (MissingGreenlet) this fix is trying to prevent. Re-fetching
+    # fresh via db.get() at the top of each iteration — rather than reusing
+    # a User object that predates any possible rollback — is what makes
+    # every iteration robust regardless of what happened in a previous one.
+    user_ids = list(await db.scalars(select(User.id).order_by(User.created_at)))
+    for user_id in user_ids:
         try:
-            candidate_result = await _candidate_morning_cycle(db, settings, user, run.id)
+            user = await db.get(User, user_id)
+            candidate_result = await _candidate_morning_cycle(db, settings, user, run_id, disable_ai=disable_ai)
         except Exception as error:
+            await db.rollback()
             candidate_result = {"status": "error", "error": str(error)[:500]}
             had_warning = True
         if candidate_result.get("ai_status") == "error" or (candidate_result.get("triage") or {}).get("status") == "error":
             had_warning = True
-        summary["candidates"][str(user.id)] = candidate_result
+        summary["candidates"][str(user_id)] = candidate_result
 
-    run.status = "completed_with_warnings" if had_warning else "completed"
+    # Re-fetched fresh rather than reusing the `run` reference from the top
+    # of this function: any rollback() above would have expired it, and
+    # setting/reading its attributes afterward risks the same implicit-
+    # lazy-load failure the user_id capture above works around.
+    run = await db.get(MorningRun, run_id)
+    final_status = "completed_with_warnings" if had_warning else "completed"
+    run.status = final_status
     run.summary = summary
     run.finished_at = datetime.now(timezone.utc)
     await db.commit()
-    return {"run_id": str(run.id), "status": run.status, "summary": summary}
+    return {"run_id": str(run_id), "status": final_status, "summary": summary}
 
 
 async def _run_agent(db: AsyncSession, user_id: uuid.UUID, settings: Settings, prompt: str, model: str):

@@ -11,6 +11,14 @@ RUN apt-get update \
 WORKDIR /app
 COPY package.json ./
 RUN npm install --ignore-scripts --omit=dev --no-audit --no-fund
+# Only the browser scan-ats-full.mjs's liveness check actually launches
+# (check-liveness.mjs: `import { chromium } from 'playwright'`,
+# `chromium.launch({ headless: true })`) — not the full Playwright browser
+# suite (firefox/webkit), which PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD above
+# still correctly skips during `npm install`'s own postinstall hook. This
+# explicit `playwright install` call is unaffected by that env var and
+# also pulls the OS-level shared libraries (--with-deps) node:*-slim lacks.
+RUN npx playwright install --with-deps --only-shell chromium
 COPY . .
 
 ENV CAREER_OPS_CODE_ROOT=/app \

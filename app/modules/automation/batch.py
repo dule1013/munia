@@ -110,6 +110,12 @@ async def rotating_reverse_discovery(db: AsyncSession, settings: Settings, ats: 
     dataset_size = cursor.dataset_size or 0
     overall_status = "ok"
     last_error: str | None = None
+    # Wall-clock time around the actual scan subprocess only (Phase 5
+    # follow-up §3) — this is what answers "how long did Workday itself
+    # take", independent of whatever ran before it in the same morning
+    # cycle. A previous ~25.9-minute TOTAL run didn't say how much of that
+    # was any one provider.
+    started_at = datetime.now(timezone.utc)
     for representative in groups.values():
         result = await run_for_candidate(db, representative.id, settings, "scan-ats-full.mjs", "--since", "7", "--ats", ats, "--limit", str(limit), "--offset", str(offset), "--json", "--liveness", timeout=1800)
         if result.returncode:
@@ -127,11 +133,12 @@ async def rotating_reverse_discovery(db: AsyncSession, settings: Settings, ats: 
         after = len(list(await db.scalars(select(Job.id))))
         discovered += max(0, after - before)
 
+    elapsed_seconds = (datetime.now(timezone.utc) - started_at).total_seconds()
     cursor = await get_or_create_cursor(db, ats)  # re-fetch: prior commits may have expired it
     await advance_cursor(db, cursor, scanned_offset=offset, batch_size=limit, dataset_size=dataset_size, status=overall_status, error=last_error)
     await db.commit()
 
-    return {"source": ats, "offset": offset, "batch_size": limit, "dataset_size": dataset_size, "next_offset": cursor.next_offset, "status": overall_status, "discovered": discovered, "candidate_jobs": await populate_candidate_jobs(db), "unique_search_configs": len(groups)}
+    return {"source": ats, "offset": offset, "batch_size": limit, "dataset_size": dataset_size, "next_offset": cursor.next_offset, "status": overall_status, "elapsed_seconds": round(elapsed_seconds, 1), "discovered": discovered, "candidate_jobs": await populate_candidate_jobs(db), "unique_search_configs": len(groups)}
 
 
 async def watchlist_all(db: AsyncSession, settings: Settings) -> dict[str, int]:

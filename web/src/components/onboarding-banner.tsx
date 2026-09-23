@@ -52,7 +52,7 @@ export function OnboardingBanner() {
         <X className="size-4" />
       </button>
       <h2 className="font-display text-xl text-landing">Let&apos;s finish setting you up</h2>
-      <p className="mt-1.5 max-w-xl text-sm text-muted">
+      <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
         career-ops works best when it knows you. We still need {items.join(", ")}.{" "}
         <span className="text-foreground">No YAML to edit</span> — answer in plain language and the assistant writes it
         for you.

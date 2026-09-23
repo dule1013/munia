@@ -135,6 +135,7 @@ try {
   const sample = {
     jobs: [
       {
+        id: 'f1e2d3c4-b5a6-9788-1234-567890abcdef',
         title: 'Head of Applied AI',
         jobUrl: 'https://jobs.ashbyhq.com/acme/1234',
         location: 'Canada',
@@ -187,6 +188,16 @@ try {
   if (fetched[0]?.location === 'Canada · Europe · Berlin · Germany')
     pass('ashby.fetch() folds secondaryLocations (region/locality/country) into location, deduped, " · "-joined');
   else fail(`ashby.fetch() row 0 location = ${JSON.stringify(fetched[0]?.location)}`);
+
+  // Job-enrichment audit (#3811): Ashby's own posting id is in the same
+  // posting-api payload but was never propagated to the normalized job.
+  if (fetched[0]?.id === 'f1e2d3c4-b5a6-9788-1234-567890abcdef')
+    pass('ashby.fetch() propagates the posting\'s own string id');
+  else fail(`ashby.fetch() row 0 id = ${JSON.stringify(fetched[0]?.id)}`);
+
+  if (fetched[1]?.id === undefined)
+    pass('ashby.fetch() leaves id undefined when the posting has none');
+  else fail(`ashby.fetch() row 1 id = ${JSON.stringify(fetched[1]?.id)}`);
 
   // Remote work model — `workplaceType` / `isRemote` live outside `location`,
   // which keeps naming the office city on a fully remote posting. Without

@@ -138,6 +138,14 @@ try {
     pass('greenhouse.fetch() maps title/absolute_url/entry.name/location.name/first_published');
   else fail(`greenhouse.fetch() row 0 = ${JSON.stringify(fetched[0])}`);
 
+  // Job-enrichment audit (#3811): Greenhouse's own posting id was already in
+  // the same list payload (used above for officeMap lookups) but never
+  // propagated to the normalized job — this is what lets the backend
+  // preserve a stable external id instead of discarding it.
+  if (fetched[0]?.id === '101')
+    pass('greenhouse.fetch() propagates the board\'s numeric posting id as a string');
+  else fail(`greenhouse.fetch() row 0 id = ${JSON.stringify(fetched[0]?.id)}`);
+
   if (fetched[1]?.title === '' && fetched[1]?.location === '' && fetched[1]?.postedAt === undefined)
     pass('greenhouse.fetch() defaults missing title/location to "" and omits postedAt when first_published is absent');
   else fail(`greenhouse.fetch() row 1 = ${JSON.stringify(fetched[1])}`);

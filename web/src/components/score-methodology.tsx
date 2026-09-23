@@ -32,7 +32,7 @@ export function ScoreMethodology() {
         <ChevronDown className="ml-auto size-4 text-faint transition-transform group-open:rotate-180" />
       </summary>
       <div className="space-y-5 border-t border-border px-5 py-4 text-sm">
-        <p className="text-muted">
+        <p className="text-muted-foreground">
           Every role is scored <strong className="text-foreground">1.0–5.0</strong> across six dimensions.{" "}
           <strong className="text-brand">4.0</strong> is the apply / don&apos;t-apply line — below it, career-ops
           recommends against applying.
@@ -42,7 +42,7 @@ export function ScoreMethodology() {
           <ul className="space-y-1.5">
             {DIMENSIONS.map(([k, v]) => (
               <li key={k}>
-                <span className="font-medium text-foreground">{k}</span> <span className="text-muted">— {v}</span>
+                <span className="font-medium text-foreground">{k}</span> <span className="text-muted-foreground">— {v}</span>
               </li>
             ))}
           </ul>
@@ -55,7 +55,7 @@ export function ScoreMethodology() {
                 <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded bg-brand-soft text-xs font-semibold text-brand">
                   {k}
                 </span>
-                <span className="text-muted">{v}</span>
+                <span className="text-muted-foreground">{v}</span>
               </li>
             ))}
           </ul>

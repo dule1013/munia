@@ -216,6 +216,10 @@ export default {
         // from an empty string downstream.
         ...(description ? { description } : {}),
         postedAt: toEpochMs(j.first_published),
+        // Greenhouse's own numeric posting id — stable per posting, already
+        // in the same list payload (used above for officeMap lookups), just
+        // never propagated to the caller until now.
+        id: j.id != null ? String(j.id) : undefined,
       };
     });
   },

@@ -119,7 +119,7 @@ export function BetaBanner() {
               <button
                 onClick={checkExisting}
                 disabled={searching}
-                className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted transition-colors hover:text-brand disabled:opacity-60"
+                className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-brand disabled:opacity-60"
               >
                 {searching ? <Loader2 className="size-3 animate-spin" /> : <Search className="size-3" />} Check for existing reports first
               </button>
@@ -128,13 +128,13 @@ export function BetaBanner() {
               // Says what to DO, not just what broke: the whole point of the
               // check is to spare a duplicate, and if we cannot run it the
               // right move is to file anyway rather than to stall.
-              <p className="mt-2 text-xs text-muted">
+              <p className="mt-2 text-xs text-muted-foreground">
                 Couldn&apos;t reach GitHub to check — file it anyway, a duplicate is cheaper than a lost report.
               </p>
             )}
             <details className="mt-3 rounded-lg border border-border bg-surface/40">
-              <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-muted">Exactly what gets attached — review before sending ↓</summary>
-              <pre className="max-h-52 overflow-auto whitespace-pre-wrap border-t border-border px-3 py-2 font-mono text-[11px] leading-relaxed text-muted">{issueBody(diag, desc)}</pre>
+              <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-muted-foreground">Exactly what gets attached — review before sending ↓</summary>
+              <pre className="max-h-52 overflow-auto whitespace-pre-wrap border-t border-border px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground">{issueBody(diag, desc)}</pre>
             </details>
             {similar.length > 0 && (
               <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
@@ -155,7 +155,7 @@ export function BetaBanner() {
               <ShieldCheck className="mt-px size-3.5 shrink-0 text-emerald-500" /> Opens a GitHub issue you confirm — nothing is sent until you click. NEVER includes your CV, profile, application answers, or job URLs.
             </p>
             <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setOpen(false)} className="rounded-full px-4 py-2 text-sm text-muted transition-colors hover:text-foreground">
+              <button onClick={() => setOpen(false)} className="rounded-full px-4 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
                 Cancel
               </button>
               <a

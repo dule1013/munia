@@ -94,7 +94,7 @@ export function TodayDashboard({
         {/* Readability scrim between the animated glow (z-0) and the copy (z-10). */}
         <div aria-hidden className="pointer-events-none absolute inset-0 z-[1] bg-surface/55 backdrop-blur-[2px] dark:bg-background/45" />
         <div className="relative z-10">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
             <span className="text-faint">//</span> today · <span className="tabular-nums">{dateLabel}</span>
           </p>
           <h1 className={`${instrumentSerif.className} mt-3 text-4xl leading-[1.05] text-landing md:text-5xl`}>
@@ -116,7 +116,7 @@ export function TodayDashboard({
               </>
             )}
           </h1>
-          <p className="mt-4 max-w-xl text-sm text-muted">
+          <p className="mt-4 max-w-xl text-sm text-muted-foreground">
             {allClear ? "I'll keep scanning the market in the background and surface anything that fits." : "Your action queue for today — discovery and follow-ups, in one place."}
           </p>
           <div className="mt-6 flex flex-wrap gap-2.5">
@@ -148,7 +148,7 @@ export function TodayDashboard({
           // Nothing is due — say so honestly instead of an empty "due" block,
           // but still surface what's next so the queue isn't silent (#86).
           <Section icon={Bell} title="Next follow-up" hint="Nothing due yet">
-            <p className="text-sm text-muted">
+            <p className="text-sm text-muted-foreground">
               <span className="font-medium text-foreground">{nextUpcoming.company}</span>
               {nextUpcoming.role && <span> · {nextUpcoming.role}</span>}
               {nextUpcoming.nextFollowupDate && <span className="text-faint"> — upcoming {nextUpcoming.nextFollowupDate}</span>}
@@ -177,7 +177,7 @@ export function TodayDashboard({
             ))}
           </div>
           {fresh.length > 6 && (
-            <Link href="/explore?view=fresh" className="mt-3 inline-flex items-center text-sm text-muted transition hover:text-brand max-sm:min-h-[44px]">
+            <Link href="/explore?view=fresh" className="mt-3 inline-flex items-center text-sm text-muted-foreground transition hover:text-brand max-sm:min-h-[44px]">
               See all {freshCount} →
             </Link>
           )}
@@ -187,7 +187,7 @@ export function TodayDashboard({
       {allClear && (
         <div className="mt-8 rounded-2xl border border-border bg-surface/30 px-6 py-10 text-center">
           <Sparkles className="mx-auto size-6 text-brand" />
-          <p className="mx-auto mt-3 max-w-md text-sm text-muted">
+          <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
             Nothing needs you right now. Run a <Link href="/explore" className="text-brand hover:underline">free scan</Link> to surface this week&apos;s roles, or check your <Link href="/pipeline" className="text-brand hover:underline">pipeline</Link>.
           </p>
         </div>
@@ -201,7 +201,7 @@ function Section({ icon: Icon, title, hint, children }: { icon: React.ComponentT
     <section className="mt-10">
       <div className="mb-3 flex items-center gap-2">
         <Icon className="size-4 text-brand" />
-        <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-muted">{title}</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-[0.16em] text-muted-foreground">{title}</h2>
         <span className="text-xs text-faint">· {hint}</span>
       </div>
       {children}

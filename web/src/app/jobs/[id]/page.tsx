@@ -17,10 +17,10 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   if (!job) {
     return (
       <div className="mx-auto w-full max-w-[120rem] px-6 py-10 lg:px-8">
-        <Link href="/pipeline" className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-brand">
+        <Link href="/pipeline" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-brand">
           <ArrowLeft className="size-4" /> Pipeline
         </Link>
-        <p className="mt-8 text-sm text-muted">
+        <p className="mt-8 text-sm text-muted-foreground">
           This worker is no longer in memory (it finished earlier or the page was reloaded).
         </p>
       </div>
@@ -29,7 +29,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
 
   return (
     <div className="mx-auto w-full max-w-[120rem] px-6 py-8 lg:px-8">
-      <Link href="/pipeline" className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-brand">
+      <Link href="/pipeline" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-brand">
         <ArrowLeft className="size-4" /> Pipeline
       </Link>
 
@@ -46,11 +46,11 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
             )}
           </p>
           <h1 className="mt-2 font-display text-2xl tracking-tight text-landing">{job.title}</h1>
-          {job.subtitle && <p className="mt-1 text-sm text-muted">{job.subtitle}</p>}
+          {job.subtitle && <p className="mt-1 text-sm text-muted-foreground">{job.subtitle}</p>}
           {job.result?.score != null && (
             <div className="mt-3 flex flex-wrap items-center gap-2.5">
               <Badge tone={job.result.tone}>{job.result.score}/5</Badge>
-              {job.result.summary && <span className="text-sm text-muted">{job.result.summary}</span>}
+              {job.result.summary && <span className="text-sm text-muted-foreground">{job.result.summary}</span>}
             </div>
           )}
         </div>
@@ -64,13 +64,13 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
             ) : (
               <CircleDot className="mt-0.5 size-3.5 shrink-0 text-faint" />
             )}
-            <span className={s.kind === "tool" ? "font-medium" : "text-muted"}>
+            <span className={s.kind === "tool" ? "font-medium" : "text-muted-foreground"}>
               {s.kind === "tool" ? `Using ${s.label}` : s.label}
             </span>
           </li>
         ))}
         {job.status === "running" && (
-          <li className="flex items-center gap-2.5 text-sm text-muted">
+          <li className="flex items-center gap-2.5 text-sm text-muted-foreground">
             <Loader2 className="size-3.5 animate-spin text-brand" /> thinking…
           </li>
         )}
@@ -78,7 +78,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
 
       {job.text && (
         <div className="mt-8">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Output</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Output</h2>
           <div className="report-prose mt-3 rounded-2xl border border-border bg-surface/40 p-5">
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{job.text}</ReactMarkdown>
           </div>

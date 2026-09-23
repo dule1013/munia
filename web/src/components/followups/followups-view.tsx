@@ -197,7 +197,7 @@ export function FollowupsView() {
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl tracking-tight text-landing">Follow-up Tracker</h1>
-          <p className="mt-1 text-sm text-muted">{subtitle}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
         </div>
         <div className="relative w-56 max-w-[35vw]">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-faint" />
@@ -222,7 +222,7 @@ export function FollowupsView() {
               onClick={() => setParams({ urgency: t === "ALL" ? null : t })}
               className={cn(
                 "-mb-px border-b-2 px-3 py-2 text-xs font-medium transition-colors",
-                tab === t ? "border-brand text-foreground" : "border-transparent text-muted hover:text-foreground",
+                tab === t ? "border-brand text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {t} <span className="text-faint tabular-nums">{count}</span>
@@ -318,7 +318,7 @@ function NarrativeCard({ meta, entries }: { meta: CadenceMetadata; entries: Cade
   return (
     <div
       className={cn(
-        "mt-5 rounded-xl border border-border border-l-4 bg-surface/40 px-4 py-3 text-sm text-muted",
+        "mt-5 rounded-xl border border-border border-l-4 bg-surface/40 px-4 py-3 text-sm text-muted-foreground",
         meta.overdue > 0 ? "border-l-red-500" : "border-l-amber-500",
       )}
     >
@@ -371,7 +371,7 @@ function FollowupRow({
             </span>
           )}
         </td>
-        <td className="max-w-56 truncate px-2.5 py-3 text-muted">{e.role}</td>
+        <td className="max-w-56 truncate px-2.5 py-3 text-muted-foreground">{e.role}</td>
         <td className="px-2.5 py-3">
           <Badge tone={scoreTone(e.score)}>{e.score || "—"}</Badge>
         </td>
@@ -410,7 +410,7 @@ function FollowupRow({
               type="button"
               onClick={onLog}
               title="Log a follow-up (date, channel, contact, notes)"
-              className="rounded-md px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-brand-soft hover:text-brand"
+              className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-brand-soft hover:text-brand"
             >
               Log
             </button>
@@ -466,9 +466,9 @@ function HistoryPanel({ entry: e, onRemove }: { entry: CadenceEntry; onRemove: (
                   </button>
                 )}
               </span>
-              <span className="tabular-nums text-muted">{f.date}</span>
+              <span className="tabular-nums text-muted-foreground">{f.date}</span>
               <Badge tone="muted">{f.channel}</Badge>
-              {f.contact && <span className="text-muted">{f.contact}</span>}
+              {f.contact && <span className="text-muted-foreground">{f.contact}</span>}
               {f.notes && <span className="text-faint">{f.notes}</span>}
             </li>
           ))}
@@ -480,7 +480,7 @@ function HistoryPanel({ entry: e, onRemove }: { entry: CadenceEntry; onRemove: (
           {e.contacts.map((c, i) => (
             <span key={c.email}>
               {i > 0 && ", "}
-              <a href={`mailto:${c.email}`} className="text-muted underline decoration-dotted underline-offset-2 transition-colors hover:text-brand">
+              <a href={`mailto:${c.email}`} className="text-muted-foreground underline decoration-dotted underline-offset-2 transition-colors hover:text-brand">
                 {c.name ? `${c.name} <${c.email}>` : c.email}
               </a>
             </span>
@@ -495,7 +495,7 @@ function EmptyPanel({ title, body }: { title: string; body: string }) {
   return (
     <div className="mt-4 rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-12 text-center">
       <p className="font-display text-lg">{title}</p>
-      <p className="mx-auto mt-1 max-w-md text-sm text-muted">{body}</p>
+      <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{body}</p>
     </div>
   );
 }

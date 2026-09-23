@@ -53,7 +53,7 @@ export function ShortlistTray({
                 <li key={it.url} className="flex items-center gap-2.5 py-2">
                   <CompanyLogo name={it.company} size={18} />
                   <span className="min-w-0 flex-1 truncate text-sm">
-                    <span className="font-medium">{it.company}</span> <span className="text-muted">· {it.role}</span>
+                    <span className="font-medium">{it.company}</span> <span className="text-muted-foreground">· {it.role}</span>
                   </span>
                   <button
                     type="button"
@@ -75,7 +75,7 @@ export function ShortlistTray({
               onClick={() => setOpen((v) => !v)}
               className="inline-flex items-center gap-1.5 text-sm font-medium max-sm:min-h-[44px]"
             >
-              <ChevronDown className={cn("size-4 text-muted transition-transform", open && "rotate-180")} />
+              <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
               Review queue <span className="tabular-nums text-brand-text">({n})</span>
             </button>
 
@@ -103,7 +103,7 @@ export function ShortlistTray({
           </div>
 
           {/* cost line — always visible on mobile (where it doesn't fit in the button) */}
-          <div className="flex items-center gap-2 border-t border-border/60 px-3 py-1.5 text-[11px] text-muted sm:hidden">
+          <div className="flex items-center gap-2 border-t border-border/60 px-3 py-1.5 text-[11px] text-muted-foreground sm:hidden">
             <CostBadge kind="spend" size="xs" />
             <span>{costText} — the only step that spends</span>
           </div>
@@ -129,7 +129,7 @@ function ConfirmScore({
   if (!hasCli) {
     return (
       <div className="flex items-center gap-2 text-xs">
-        <span className="text-muted">No AI configured.</span>
+        <span className="text-muted-foreground">No AI configured.</span>
         <Link href="/config" className="inline-flex items-center gap-1 rounded-full border border-brand/40 bg-brand-soft px-3 py-1.5 font-medium text-brand max-sm:min-h-[44px]">
           <Settings className="size-3.5" /> Set up
         </Link>
@@ -141,7 +141,7 @@ function ConfirmScore({
   }
   return (
     <div className="flex items-center gap-2">
-      <span className="hidden items-center gap-1 text-[11px] text-muted sm:inline-flex">
+      <span className="hidden items-center gap-1 text-[11px] text-muted-foreground sm:inline-flex">
         <Coins className="size-3.5 text-brand" /> {costText}
       </span>
       <button

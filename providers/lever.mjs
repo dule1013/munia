@@ -90,6 +90,8 @@ export default {
       // payload, no per-job request) — enables scan.mjs content_filter.
       description: typeof j.descriptionPlain === 'string' ? j.descriptionPlain : '',
       postedAt: typeof j.createdAt === 'number' ? j.createdAt : undefined,
+      // Lever's own posting id — same payload, not previously propagated.
+      id: typeof j.id === 'string' ? j.id : undefined,
     }));
   },
 };

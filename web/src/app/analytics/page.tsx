@@ -55,7 +55,7 @@ export default async function Analytics() {
   return (
     <div className="mx-auto w-full max-w-[120rem] px-6 py-10">
       <h1 className="font-display text-2xl tracking-tight text-landing">Analytics</h1>
-      <p className="mt-1 text-sm text-muted">Across {total} tracked evaluations.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Across {total} tracked evaluations.</p>
 
       {/* headline stats */}
       <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -107,7 +107,7 @@ function Stat({ value, label, hint }: { value: number | string; label: string; h
       <div className="text-3xl font-semibold tabular-nums">{value}</div>
       <div className="mt-1 text-xs text-faint">{label}</div>
       {hint && (
-        <Link href="/" className="mt-2 block text-xs text-muted transition-colors hover:text-brand">
+        <Link href="/" className="mt-2 block text-xs text-muted-foreground transition-colors hover:text-brand">
           {hint}
         </Link>
       )}
@@ -118,7 +118,7 @@ function Stat({ value, label, hint }: { value: number | string; label: string; h
 function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
     <section id={id} className="mt-10 scroll-mt-8">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">{title}</h2>
+      <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">{title}</h2>
       <div className="mt-4 space-y-2.5">{children}</div>
     </section>
   );
@@ -144,7 +144,7 @@ function Bar({
       : "bg-gradient-to-r from-foreground/25 to-foreground/10";
   return (
     <div className="flex items-center gap-3">
-      <div className="w-32 shrink-0 truncate text-sm text-muted">{label}</div>
+      <div className="w-32 shrink-0 truncate text-sm text-muted-foreground">{label}</div>
       <div className="relative h-7 flex-1 overflow-hidden rounded-md bg-surface">
         <div
           className={`h-full rounded-md ${fill}`}

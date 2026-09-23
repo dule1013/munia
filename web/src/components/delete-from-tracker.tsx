@@ -64,7 +64,7 @@ export function DeleteFromTracker({ n }: { n: string }) {
     return (
       <button
         onClick={openConfirm}
-        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted max-sm:min-h-[44px] transition-colors hover:border-red-400/50 hover:text-red-500"
+        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground max-sm:min-h-[44px] transition-colors hover:border-red-400/50 hover:text-red-500"
       >
         <Trash2 className="size-3.5" /> Remove from tracker
       </button>
@@ -74,7 +74,7 @@ export function DeleteFromTracker({ n }: { n: string }) {
   return (
     <div className="rounded-lg border border-red-400/30 bg-red-500/[0.06] p-3 text-xs">
       <p className="font-medium text-foreground">Permanently remove application #{n} from your tracker?</p>
-      <p className="mt-1 text-muted">
+      <p className="mt-1 text-muted-foreground">
         This can’t be undone.{orphan ? ` Its report file (${orphan}) is left on disk.` : ""}
       </p>
       {err && <p className="mt-1.5 text-red-500">{err}</p>}
@@ -89,7 +89,7 @@ export function DeleteFromTracker({ n }: { n: string }) {
         <button
           disabled={busy}
           onClick={() => setOpen(false)}
-          className="rounded-md border border-border px-2.5 py-1 text-muted max-sm:min-h-[44px] transition-colors hover:text-foreground disabled:opacity-50"
+          className="rounded-md border border-border px-2.5 py-1 text-muted-foreground max-sm:min-h-[44px] transition-colors hover:text-foreground disabled:opacity-50"
         >
           Cancel
         </button>

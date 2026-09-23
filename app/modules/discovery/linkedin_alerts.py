@@ -153,6 +153,66 @@ def _strip_tags(fragment: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
+# LinkedIn's plain-text MIME alternative (present alongside the HTML part
+# decode_message_body concatenates in) renders each job as a short, rigidly
+# -ordered block — inspected directly against several real stored alert
+# emails (career-ops job-enrichment audit) rather than assumed:
+#
+#     --------------------------------------------------
+#     {Title}
+#     {Company}
+#     {Location}
+#     [0-2 optional badge lines: "This company is actively hiring",
+#      "Apply with resume & profile", "N connection(s)", a company
+#      descriptor like "Fast growing", ...]
+#     View job: {url}
+#
+# with the very first card preceded by "New jobs match your preferences."
+# instead of a dashed rule. The badge-line vocabulary is deliberately NOT
+# treated as a small closed set to skip (company descriptors vary too much
+# to enumerate) — this only trusts the first three non-blank lines
+# immediately after a delimiter, which held across every real card
+# inspected; a card that doesn't fit that shape is left alone rather than
+# guessed at.
+_PLAIN_TEXT_DELIMITER_RE = re.compile(r"^-{10,}\s*$|^New jobs match your preferences\.\s*$", re.MULTILINE)
+_VIEW_JOB_URL_RE = re.compile(r"View job:\s*(\S+)")
+
+
+def _plain_text_job_cards(body: str) -> dict[str, dict[str, str]]:
+    """{job_id: {"title", "company", "location"}} for cards whose plain-text
+    block matched the expected 3-line shape. Never guesses: a block with
+    fewer than 3 non-blank lines before its "View job:" line, or a job_id
+    that (implausibly) appears in more than one block, is simply omitted."""
+    if not body:
+        return {}
+    delimiter_ends = [m.end() for m in _PLAIN_TEXT_DELIMITER_RE.finditer(body)]
+    if not delimiter_ends:
+        return {}
+    cards: dict[str, dict[str, str] | None] = {}
+    for match in _VIEW_JOB_URL_RE.finditer(body):
+        id_match = _JOB_ID_RE.search(match.group(1))
+        if not id_match:
+            continue
+        job_id = id_match.group(1) or id_match.group(2)
+        block_start = max((pos for pos in delimiter_ends if pos <= match.start()), default=None)
+        if block_start is None:
+            continue
+        lines = [line.strip() for line in body[block_start : match.start()].splitlines() if line.strip()]
+        if len(lines) < 3:
+            continue
+        card = {"title": lines[0], "company": lines[1], "location": lines[2]}
+        # A job_id appearing in more than one block is not something the
+        # real digests examined ever did — if it somehow happens, that's a
+        # sign of a boundary-detection error, not two genuine cards, so
+        # tombstone it rather than keep either guess.
+        cards[job_id] = None if job_id in cards else card
+    return {job_id: card for job_id, card in cards.items() if card is not None}
+
+
+def _normalize_for_match(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip().casefold()
+
+
 def _per_job_link_titles(body: str) -> dict[str, str]:
     """Best-effort per-job title from each job link's own anchor text —
     the only thing in a multi-job digest that can distinguish one posting
@@ -195,4 +255,27 @@ def parse_alert_message(message: dict) -> list[LinkedInJobCandidate]:
     body = decode_message_body(message.get("payload"))
     urls = extract_job_urls(body)
     link_titles = _per_job_link_titles(body)
-    return [LinkedInJobCandidate(job_id=job_id, url=url, title=link_titles.get(job_id) or title, company=company or "(LinkedIn)") for job_id, url in urls]
+    plain_text_cards = _plain_text_job_cards(body)
+
+    candidates = []
+    for job_id, url in urls:
+        anchor_title = link_titles.get(job_id)
+        resolved_title = anchor_title or title
+        resolved_company = company or "(LinkedIn)"
+        location = ""
+        card = plain_text_cards.get(job_id)
+        if card:
+            # Only trust the plain-text card's company/location when there's
+            # no independently-derived anchor title that actually disagrees
+            # with it — an anchor title is itself scoped to this exact URL,
+            # so a mismatch is a signal the block-boundary detection above
+            # picked up the wrong card for this job_id, not a reason to
+            # override a title we already trust more.
+            if anchor_title is None or _normalize_for_match(anchor_title) == _normalize_for_match(card["title"]):
+                location = card["location"]
+                if not anchor_title:
+                    resolved_title = card["title"]
+                if resolved_company == "(LinkedIn)" and card["company"]:
+                    resolved_company = card["company"]
+        candidates.append(LinkedInJobCandidate(job_id=job_id, url=url, title=resolved_title, company=resolved_company, location=location))
+    return candidates

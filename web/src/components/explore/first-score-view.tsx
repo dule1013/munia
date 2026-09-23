@@ -16,7 +16,7 @@ const SEEN_KEY = "career-ops:first-score-seen";
 const STYLE = `
 .co-aha{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:1.2rem;background:color-mix(in srgb, var(--bg) 70%, rgba(0,0,0,.5));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);animation:co-aha-in .35s ease both}
 .co-aha__card{position:relative;width:min(34rem,100%);border-radius:1.3rem;border:1px solid var(--border,hsl(0 0% 50% /.2));background:var(--bg);box-shadow:0 24px 70px -20px rgba(0,0,0,.5);overflow:hidden}
-.co-aha__glow{position:absolute;inset:0;background:radial-gradient(80% 60% at 50% -10%, hsl(26 82% 55% /.22), transparent 70%);pointer-events:none}
+.co-aha__glow{position:absolute;inset:0;background:radial-gradient(80% 60% at 50% -10%, hsl(217 82% 55% /.22), transparent 70%);pointer-events:none}
 .co-aha__grade{font-variant-numeric:tabular-nums;line-height:1}
 @keyframes co-aha-in{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.co-aha{animation:none}}
@@ -130,14 +130,14 @@ export function FirstScoreView() {
           <div className="mt-4 flex items-start gap-4">
             <div className="min-w-0 flex-1">
               <h2 className={`${instrumentSerif.className} truncate text-2xl leading-tight text-foreground`}>{role || company}</h2>
-              {role && <p className="truncate text-sm text-muted">{company}</p>}
+              {role && <p className="truncate text-sm text-muted-foreground">{company}</p>}
             </div>
             {score != null && (
               <div className="shrink-0 text-right">
                 <div
                   className={cn(
                     "co-aha__grade text-5xl font-semibold",
-                    tone === "good" ? "text-emerald-500" : tone === "warn" ? "text-amber-500" : tone === "bad" ? "text-red-400" : "text-muted",
+                    tone === "good" ? "text-emerald-500" : tone === "warn" ? "text-amber-500" : tone === "bad" ? "text-red-400" : "text-muted-foreground",
                   )}
                 >
                   {score}

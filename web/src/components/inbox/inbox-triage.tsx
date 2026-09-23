@@ -229,7 +229,7 @@ export function InboxTriage({ inbox }: { inbox: InboxJob[] }) {
           <button type="button" onClick={saveSelected} className="rounded-md bg-brand px-2.5 py-1 text-xs font-medium text-brand-foreground max-sm:min-h-[44px]">
             Add to review queue
           </button>
-          <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-muted hover:text-foreground max-sm:min-h-[44px]">
+          <button type="button" onClick={() => setSelected(new Set())} className="text-xs text-muted-foreground hover:text-foreground max-sm:min-h-[44px]">
             Clear
           </button>
         </div>
@@ -255,7 +255,7 @@ export function InboxTriage({ inbox }: { inbox: InboxJob[] }) {
       ) : (
         <div className="mt-3 rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-10 text-center">
           <p className="font-display text-lg">No matches</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-muted">Loosen the filters to see more of your inbox.</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">Loosen the filters to see more of your inbox.</p>
         </div>
       )}
 
@@ -264,7 +264,7 @@ export function InboxTriage({ inbox }: { inbox: InboxJob[] }) {
         <button
           type="button"
           onClick={() => setShowAll(true)}
-          className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-xl border border-border bg-surface/40 py-2.5 text-sm font-medium text-muted transition-colors hover:border-brand/40 hover:text-brand max-sm:min-h-[44px]"
+          className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-xl border border-border bg-surface/40 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-brand/40 hover:text-brand max-sm:min-h-[44px]"
         >
           See all {ordered.length} in inbox →
         </button>
@@ -279,7 +279,7 @@ export function InboxTriage({ inbox }: { inbox: InboxJob[] }) {
       {undo && (
         <div className={cn("fixed inset-x-0 z-40 flex justify-center px-4", shortlist.length > 0 ? "bottom-24 sm:bottom-24" : "bottom-6")}>
           <div className="inline-flex items-center gap-3 rounded-full border border-border bg-surface px-4 py-2 text-sm shadow-lg">
-            <span className="text-muted">{undo.label}</span>
+            <span className="text-muted-foreground">{undo.label}</span>
             <button type="button" onClick={() => { undo.fn(); setUndo(null); }} className="inline-flex items-center gap-1 font-medium text-brand max-sm:min-h-[44px]">
               <Undo2 className="size-3.5" /> Undo
             </button>

@@ -18,13 +18,13 @@ export function FirstRunHome() {
             clears WCAG AA contrast instead of washing out over a bright corner. */}
         <div aria-hidden className="pointer-events-none absolute inset-0 z-[1] bg-surface/55 backdrop-blur-[2px] dark:bg-background/45" />
         <div className="relative z-10">
-          <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted">
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-muted-foreground">
             <span className="text-faint">//</span> local-first · your machine
           </p>
           <h1 className={`${instrumentSerif.className} mt-3 text-4xl leading-[1.05] text-landing md:text-5xl`}>
             Drop your CV. See who&apos;s hiring you in 60 seconds.
           </h1>
-          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted">
+          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-muted-foreground">
             No account. Paste text or drop a .md / .txt file to start. A PDF needs an AI CLI in{" "}
             <a href="/config" className="text-foreground underline-offset-2 hover:underline">
               Config

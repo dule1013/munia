@@ -17,8 +17,8 @@ const STYLE = `
 .co-fb__chip{display:inline-flex;align-items:center;gap:.3rem;border-radius:999px;padding:.2rem .5rem .2rem .6rem;font-size:12.5px;line-height:1.2;border:1px solid transparent}
 .co-fb__chip button{display:inline-flex;opacity:.6;transition:opacity .15s}
 .co-fb__chip button:hover{opacity:1}
-.co-fb__chip.inc{color:hsl(26 78% 42%);background:hsl(26 73% 51% / .11);border-color:hsl(26 73% 51% / .26)}
-html.dark .co-fb__chip.inc{color:hsl(26 86% 70%);background:hsl(26 80% 55% / .14);border-color:hsl(26 80% 55% / .28)}
+.co-fb__chip.inc{color:hsl(217 78% 42%);background:hsl(217 73% 51% / .11);border-color:hsl(217 73% 51% / .26)}
+html.dark .co-fb__chip.inc{color:hsl(217 86% 70%);background:hsl(217 80% 55% / .14);border-color:hsl(217 80% 55% / .28)}
 .co-fb__field{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;min-height:2.6rem;padding:.45rem .55rem;border-radius:.7rem}
 .co-fb__field input{flex:1;min-width:7rem;background:transparent;border:none;outline:none;font-size:13.5px;color:inherit}
 .co-fb__field input::placeholder{color:var(--co-faint,hsl(0 0% 60%))}
@@ -49,7 +49,7 @@ function KeywordField({
   return (
     <div className={cn("co-fb__field border border-border bg-surface/40 focus-within:border-brand/40 transition-colors")}>
       {values.map((v) => (
-        <span key={v} className={cn("co-fb__chip", tone === "inc" ? "inc" : "border-border bg-surface-hover text-muted")}>
+        <span key={v} className={cn("co-fb__chip", tone === "inc" ? "inc" : "border-border bg-surface-hover text-muted-foreground")}>
           {tone === "exc" && <Ban className="size-3 opacity-70" />}
           {v}
           <button type="button" aria-label={`Remove ${v}`} onClick={() => onChange(values.filter((x) => x !== v))}>
@@ -136,7 +136,7 @@ export function FilterBuilder({
         <div>
           <Label hint="postings published in this window">
             <span className="inline-flex items-center gap-1.5">
-              <Clock className="size-3.5 text-muted" /> Posted within
+              <Clock className="size-3.5 text-muted-foreground" /> Posted within
             </span>
           </Label>
           <div className="inline-flex rounded-lg border border-border bg-surface/40 p-0.5">
@@ -147,7 +147,7 @@ export function FilterBuilder({
                 onClick={() => set({ sinceDays: r.days })}
                 className={cn(
                   "rounded-md px-2.5 py-1 text-xs font-medium transition-colors max-sm:min-h-[44px]",
-                  filters.sinceDays === r.days ? "bg-brand-soft text-brand" : "text-muted hover:text-foreground",
+                  filters.sinceDays === r.days ? "bg-brand-soft text-brand" : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 {r.label}
@@ -168,7 +168,7 @@ export function FilterBuilder({
                   onClick={() => toggleAts(a)}
                   className={cn(
                     "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors max-sm:min-h-[44px]",
-                    on ? "border-brand/40 bg-brand-soft text-brand" : "border-border text-muted hover:text-foreground",
+                    on ? "border-brand/40 bg-brand-soft text-brand" : "border-border text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {ATS_LABEL[a]}
@@ -182,7 +182,7 @@ export function FilterBuilder({
       <button
         type="button"
         onClick={() => setAdvanced((v) => !v)}
-        className="inline-flex items-center gap-1.5 text-[12px] text-muted hover:text-foreground transition-colors max-sm:min-h-[44px]"
+        className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors max-sm:min-h-[44px]"
       >
         <SlidersHorizontal className="size-3.5" />
         Location &amp; scope
@@ -191,7 +191,7 @@ export function FilterBuilder({
 
       {advanced && (
         <div className="space-y-3 rounded-xl border border-border bg-surface/30 p-3">
-          <div className="flex items-center gap-1.5 text-[12px] text-muted">
+          <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
             <MapPin className="size-3.5" /> Location
           </div>
           <div className="grid gap-3 sm:grid-cols-3">

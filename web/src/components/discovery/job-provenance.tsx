@@ -21,7 +21,7 @@ export function JobProvenance({ jobId }: { jobId: string }) {
 
   return (
     <p className="text-xs text-faint">
-      Found via: <span className="text-muted">{provenanceLabels(entries).join(" · ")}</span>
+      Found via: <span className="text-muted-foreground">{provenanceLabels(entries).join(" · ")}</span>
     </p>
   );
 }

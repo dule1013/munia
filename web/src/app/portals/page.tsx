@@ -13,17 +13,17 @@ export default function PortalsPage() {
         <h1 className="font-display text-2xl tracking-tight text-landing">Portals</h1>
       </div>
       {portalEnabled ? (
-        <p className="mt-6 max-w-xl rounded-xl border border-dashed border-border bg-surface/30 p-4 text-sm text-muted">
+        <p className="mt-6 max-w-xl rounded-xl border border-dashed border-border bg-surface/30 p-4 text-sm text-muted-foreground">
           Portal verification is unavailable in multi-user mode. Discovery uses the shared backend scanner instead.
         </p>
       ) : (
         <>
-          <p className="mt-1.5 max-w-xl text-sm text-muted">
+          <p className="mt-1.5 max-w-xl text-sm text-muted-foreground">
             The companies career-ops watches for new roles. Run a health check to catch company boards that have quietly
             broken — a broken link means that company silently disappears from every future scan.
           </p>
           <p className="mt-1.5 text-xs text-faint">
-            Backed by <code className="text-muted">portals.yml</code> — edit it directly or ask the assistant.
+            Backed by <code className="text-muted-foreground">portals.yml</code> — edit it directly or ask the assistant.
           </p>
           <div className="mt-6">
             <PortalsView />

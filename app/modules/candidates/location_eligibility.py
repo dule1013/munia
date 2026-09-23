@@ -46,6 +46,44 @@ COUNTRY_ALIASES: dict[str, str] = {
     "poland": "poland", "serbia": "serbia",
 }
 
+# US ATS postings very commonly give a "City, ST" / "City, State" location
+# (e.g. "Chicago, IL", "Salem, New Hampshire") WITHOUT ever spelling out
+# "United States" at all — COUNTRY_ALIASES alone misses this entirely,
+# which was letting these fall through to the "no clear signal -> plausible"
+# default instead of being recognized as US-scoped.
+US_STATE_ABBREVIATIONS: frozenset[str] = frozenset({
+    "al", "ak", "az", "ar", "ca", "co", "ct", "de", "fl", "ga", "hi", "id", "il", "in", "ia",
+    "ks", "ky", "la", "me", "md", "ma", "mi", "mn", "ms", "mo", "mt", "ne", "nv", "nh", "nj",
+    "nm", "ny", "nc", "nd", "oh", "ok", "or", "pa", "ri", "sc", "sd", "tn", "tx", "ut", "vt",
+    "va", "wa", "wv", "wi", "wy", "dc",
+})
+US_STATE_NAMES: frozenset[str] = frozenset({
+    "alabama", "alaska", "arizona", "arkansas", "california", "colorado", "connecticut",
+    "delaware", "florida", "georgia", "hawaii", "idaho", "illinois", "indiana", "iowa",
+    "kansas", "kentucky", "louisiana", "maine", "maryland", "massachusetts", "michigan",
+    "minnesota", "mississippi", "missouri", "montana", "nebraska", "nevada", "new hampshire",
+    "new jersey", "new mexico", "new york", "north carolina", "north dakota", "ohio",
+    "oklahoma", "oregon", "pennsylvania", "rhode island", "south carolina", "south dakota",
+    "tennessee", "texas", "utah", "vermont", "virginia", "washington", "west virginia",
+    "wisconsin", "wyoming",
+})
+
+
+def _names_a_us_state(text: str) -> bool:
+    """Deliberately scoped to comma-separated SEGMENTS of `text` (the
+    structured job `location` field, or a short residency-requirement
+    fragment) rather than a bare substring search across free text — a
+    bare 2-letter state code ("OK", "IN", "OR", "ME", "PA", "WA") would
+    false-positive constantly inside description prose, but is unambiguous
+    as its own comma-delimited segment ("Chicago, IL") or as an entire
+    short captured fragment ("must reside in Illinois" -> "Illinois")."""
+    for segment in (text or "").split(","):
+        token = segment.strip().lower()
+        if token in US_STATE_ABBREVIATIONS or token in US_STATE_NAMES:
+            return True
+    return False
+
+
 # Explicit residency-REQUIREMENT phrasing — a much stronger signal than a
 # bare region/country mention elsewhere in the text. Captures the place
 # named right after the phrase.
@@ -76,7 +114,10 @@ def _resolve_countries(fragment: str) -> set[str]:
     and Portugal" must be checked against ALL of them so the candidate's
     own country is recognized even when another country is also listed."""
     fragment = fragment.strip().strip(".")
-    return {canonical for alias, canonical in COUNTRY_ALIASES.items() if _contains_term(fragment, alias)}
+    countries = {canonical for alias, canonical in COUNTRY_ALIASES.items() if _contains_term(fragment, alias)}
+    if _names_a_us_state(fragment):
+        countries.add("united states")
+    return countries
 
 
 def _resolve_regions(fragment: str) -> set[str]:
@@ -133,6 +174,8 @@ def classify_location_eligibility(location: str, description: str, config: Candi
     # also present -> ineligible (implicit country-scoped remote, e.g. "US
     # remote", "Remote (Germany)", "Remote — UK, Germany, France").
     named_countries = {alias_country for alias, alias_country in COUNTRY_ALIASES.items() if _contains_term(text, alias)}
+    if _names_a_us_state(location):
+        named_countries.add("united states")
     named_countries.discard(config.home_country.lower())
     has_eligible_region = any(config.is_eligible_region(r) for r in REGION_TERMS if _contains_term(text, r))
     if named_countries and not has_eligible_region:

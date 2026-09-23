@@ -147,3 +147,139 @@ def test_malformed_headers_shape_fails_closed_without_raising():
     assert is_authentic_sender(None) is False
     assert is_authentic_sender("not-a-list") is False
     assert is_authentic_sender([]) is False
+
+
+# ── Plain-text card location extraction (job-enrichment audit, #3811) ──────
+# Fixtures below are a sanitized reconstruction of the SHAPE observed in
+# several real stored LinkedIn Job Alert digest emails (fictional
+# company/title/tracking-param values) — LinkedIn's plain-text MIME
+# alternative renders each job as a short, rigidly-ordered block that
+# decode_message_body concatenates in alongside the HTML part:
+#
+#   --------------------------------------------------
+#   {Title}
+#   {Company}
+#   {Location}
+#   [0-2 optional badge lines]
+#   View job: {url}
+#
+# with the first card preceded by "New jobs match your preferences."
+# instead of a dashed rule. Location was previously never extracted at all
+# (LinkedInJobCandidate.location defaulted to "" with no parsing logic).
+
+PLAIN_TEXT_DIGEST = (
+    "Your job alert for director of engineering in Spain\r\n"
+    "New jobs match your preferences.\r\n"
+    "\r\n"
+    "Head of Engineering\r\n"
+    "Acme Corp\r\n"
+    "Barcelona\r\n"
+    "\r\n"
+    "This company is actively hiring\r\n"
+    "View job: https://www.linkedin.com/comm/jobs/view/1111111111/?trackingId=abc%3D%3D\r\n"
+    "\r\n"
+    "---------------------------------------------------------\r\n"
+    "  \r\n"
+    "Head of AI Engineering\r\n"
+    "Recruiter Agency Co\r\n"
+    "Barcelona\r\n"
+    "\r\n"
+    "This company is actively hiring\r\n"
+    "Apply with resume & profile\r\n"
+    "View job: https://www.linkedin.com/comm/jobs/view/2222222222/?trackingId=def%3D%3D\r\n"
+    "\r\n"
+    "----------------------------------------------------------\r\n"
+    "  \r\n"
+    "Chief Engineer - Program X\r\n"
+    "Some Group\r\n"
+    "Madrid\r\n"
+    "\r\n"
+    "1 connection\r\n"
+    "Apply with resume & profile\r\n"
+    "View job: https://www.linkedin.com/comm/jobs/view/3333333333/?trackingId=ghi%3D%3D\r\n"
+)
+
+# The plain-text alternative usually sits alongside anchor'd HTML for the
+# SAME jobs in a real multipart email; matching anchor text is what lets the
+# parser trust the plain-text card without a mismatch. Kept intentionally
+# simple/minimal here — full multipart assembly is exercised implicitly by
+# make_message's single-part body, which is enough for decode_message_body.
+PLAIN_TEXT_DIGEST_WITH_MATCHING_ANCHORS = PLAIN_TEXT_DIGEST + (
+    '<a href="https://www.linkedin.com/comm/jobs/view/1111111111?trk=x">Head of Engineering</a>'
+    '<a href="https://www.linkedin.com/comm/jobs/view/2222222222?trk=x">Head of AI Engineering</a>'
+    '<a href="https://www.linkedin.com/comm/jobs/view/3333333333?trk=x">Chief Engineer - Program X</a>'
+)
+
+
+def test_plain_text_card_location_is_extracted_for_the_first_card_after_the_intro_line():
+    message = make_message(subject="Acme Corp is hiring a Head of Engineering", body=PLAIN_TEXT_DIGEST_WITH_MATCHING_ANCHORS)
+    candidates = {c.job_id: c for c in parse_alert_message(message)}
+    assert candidates["1111111111"].location == "Barcelona"
+    assert candidates["1111111111"].company == "Acme Corp"  # anchor title matched -> company comes from the subject, not overridden
+
+
+def test_plain_text_card_location_survives_a_recruitment_agency_company_name_with_a_dash():
+    message = make_message(subject="3 new Head of Engineering jobs for you", body=PLAIN_TEXT_DIGEST_WITH_MATCHING_ANCHORS)
+    candidates = {c.job_id: c for c in parse_alert_message(message)}
+    assert candidates["2222222222"].location == "Barcelona"
+    assert candidates["2222222222"].title == "Head of AI Engineering"
+
+
+def test_plain_text_card_location_extracted_after_a_dashed_separator_ignoring_trailing_badge_lines():
+    message = make_message(subject="3 new Head of Engineering jobs for you", body=PLAIN_TEXT_DIGEST_WITH_MATCHING_ANCHORS)
+    candidates = {c.job_id: c for c in parse_alert_message(message)}
+    assert candidates["3333333333"].location == "Madrid"
+    assert candidates["3333333333"].title == "Chief Engineer - Program X"
+
+
+def test_plain_text_card_is_not_trusted_when_the_anchor_title_disagrees():
+    """A mismatch between the independently-derived anchor title and the
+    plain-text card's own title is treated as a boundary-detection risk, not
+    something to override — conservatively no location is attached."""
+    mismatched = PLAIN_TEXT_DIGEST_WITH_MATCHING_ANCHORS.replace(
+        '<a href="https://www.linkedin.com/comm/jobs/view/1111111111?trk=x">Head of Engineering</a>',
+        '<a href="https://www.linkedin.com/comm/jobs/view/1111111111?trk=x">Totally Different Role Title</a>',
+    )
+    message = make_message(subject="3 new jobs for you", body=mismatched)
+    candidates = {c.job_id: c for c in parse_alert_message(message)}
+    assert candidates["1111111111"].title == "Totally Different Role Title"
+    assert candidates["1111111111"].location == ""
+
+
+def test_plain_text_card_used_as_title_source_when_no_anchor_title_exists():
+    message = make_message(subject="3 new jobs for you", body=PLAIN_TEXT_DIGEST)  # no HTML anchors at all this time
+    candidates = {c.job_id: c for c in parse_alert_message(message)}
+    assert candidates["1111111111"].title == "Head of Engineering"
+    assert candidates["1111111111"].location == "Barcelona"
+    assert candidates["1111111111"].company == "Acme Corp"
+
+
+def test_malformed_plain_text_card_with_too_few_lines_before_view_job_yields_no_location():
+    body = "New jobs match your preferences.\r\nOnly One Line\r\nView job: https://www.linkedin.com/comm/jobs/view/4444444444/\r\n"
+    message = make_message(subject="1 new job for you", body=body)
+    candidates = {c.job_id: c for c in parse_alert_message(message)}
+    assert candidates["4444444444"].location == ""
+
+
+def test_body_with_no_delimiter_at_all_yields_no_plain_text_cards_and_no_location():
+    body = 'Head of Engineering\r\nAcme\r\nMadrid\r\nView job: https://www.linkedin.com/comm/jobs/view/5555555555/\r\n'
+    message = make_message(subject="1 new job for you", body=body)
+    candidates = {c.job_id: c for c in parse_alert_message(message)}
+    assert candidates["5555555555"].location == ""
+
+
+def test_duplicate_job_id_across_two_plain_text_blocks_is_not_guessed_at():
+    """Real digests never repeat a job_id across cards — if the boundary
+    detection somehow produces that, treat it as a signal something went
+    wrong rather than pick either block's location."""
+    body = (
+        "New jobs match your preferences.\r\n"
+        "Title One\r\nCompany One\r\nMadrid\r\n"
+        "View job: https://www.linkedin.com/comm/jobs/view/6666666666/\r\n"
+        "----------------------------------------------------------\r\n"
+        "Title Two\r\nCompany Two\r\nBarcelona\r\n"
+        "View job: https://www.linkedin.com/comm/jobs/view/6666666666/\r\n"
+    )
+    message = make_message(subject="1 new job for you", body=body)
+    candidates = {c.job_id: c for c in parse_alert_message(message)}
+    assert candidates["6666666666"].location == ""

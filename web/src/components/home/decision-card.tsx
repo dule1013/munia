@@ -41,13 +41,13 @@ export function DecisionCard({ app }: { app: Application }) {
         <CompanyLogo name={company.logoName} size={24} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium text-foreground">{company.label}</p>
-          <p className="truncate text-[13px] text-muted">{app.role}</p>
+          <p className="truncate text-[13px] text-muted-foreground">{app.role}</p>
         </div>
         {Number.isFinite(score) && score > 0 && (
           <span
             className={cn(
               "shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold tabular-nums",
-              tone === "good" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : tone === "warn" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-surface-hover text-muted",
+              tone === "good" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : tone === "warn" ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-surface-hover text-muted-foreground",
             )}
           >
             {app.score}
@@ -67,7 +67,7 @@ export function DecisionCard({ app }: { app: Application }) {
           type="button"
           disabled={!!busy}
           onClick={() => setStatus("Discarded")}
-          className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted transition hover:text-foreground disabled:opacity-60 max-sm:min-h-[44px] max-sm:px-4"
+          className="inline-flex items-center justify-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition hover:text-foreground disabled:opacity-60 max-sm:min-h-[44px] max-sm:px-4"
         >
           {busy === "Discarded" ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" />} Skip
         </button>

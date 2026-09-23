@@ -23,7 +23,7 @@ function cliId(): string | null {
 
 const STYLE = `
 .co-cvdrop{position:relative;border:1.5px dashed color-mix(in srgb, var(--fg) 22%, transparent);border-radius:1rem;transition:border-color .2s,background .2s}
-.co-cvdrop[data-over="true"]{border-color:hsl(26 73% 51%);background:hsl(26 73% 51% /.05)}
+.co-cvdrop[data-over="true"]{border-color:hsl(217 73% 51%);background:hsl(217 73% 51% /.05)}
 .co-cvtrace{animation:co-rise .4s ease both}
 `;
 
@@ -313,7 +313,7 @@ export function CvIngest({ onSaved }: { onSaved?: () => void }) {
             setSeed(null);
             setPhase("input");
           }}
-          className="inline-flex items-center gap-1.5 text-[13px] text-muted transition hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-[13px] text-muted-foreground transition hover:text-foreground"
         >
           <RotateCcw className="size-3.5" /> Start over
         </button>

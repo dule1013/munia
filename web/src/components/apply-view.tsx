@@ -14,7 +14,7 @@ import { Fragment, useEffect, useRef, useState } from "react";
 const STYLE = `
 @keyframes co-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .co-rise{animation:co-rise .55s cubic-bezier(.22,1,.36,1) both}
-@keyframes co-flash{0%{box-shadow:0 0 0 0 hsl(26 82% 55% / 0)}22%{box-shadow:0 0 0 3px hsl(26 82% 55% / .38)}100%{box-shadow:0 0 0 0 hsl(26 82% 55% / 0)}}
+@keyframes co-flash{0%{box-shadow:0 0 0 0 hsl(217 82% 55% / 0)}22%{box-shadow:0 0 0 3px hsl(217 82% 55% / .38)}100%{box-shadow:0 0 0 0 hsl(217 82% 55% / 0)}}
 .co-flash{animation:co-flash 1.15s ease both;border-radius:.6rem}
 @keyframes co-shim{0%{background-position:-200% 0}100%{background-position:200% 0}}
 .co-skel{background:linear-gradient(90deg, color-mix(in srgb,var(--fg) 5%, transparent) 25%, color-mix(in srgb,var(--fg) 12%, transparent) 37%, color-mix(in srgb,var(--fg) 5%, transparent) 63%);background-size:200% 100%;animation:co-shim 1.6s linear infinite;border-radius:.5rem}
@@ -141,18 +141,18 @@ export function ApplyView() {
               {prefilling ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
               {prefilling ? "Drafting from your CV…" : "Pre-fill from my CV"}
             </button>
-            <span className="text-xs text-muted">…or ask the corner assistant to write/revise any answer.</span>
+            <span className="text-xs text-muted-foreground">…or ask the corner assistant to write/revise any answer.</span>
           </div>
 
           {(prefilling || a.prefillLog.length > 0) && (
             <details className="mb-4 rounded-lg border border-border bg-surface/60 backdrop-blur-sm" open={false}>
-              <summary className="flex cursor-pointer select-none items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted">
+              <summary className="flex cursor-pointer select-none items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground">
                 <Terminal className="size-3.5" /> Pre-fill diagnostics
                 {prefilling && <Loader2 className="size-3 animate-spin text-brand" />}
                 <span className="ml-auto text-faint">{a.prefillLog.length} steps</span>
               </summary>
               <div className="max-h-52 overflow-y-auto border-t border-border px-3 py-2">
-                <ol className="space-y-0.5 font-mono text-[11px] leading-relaxed text-muted">
+                <ol className="space-y-0.5 font-mono text-[11px] leading-relaxed text-muted-foreground">
                   {a.prefillLog.map((l, i) => (
                     <li key={i} className={l.startsWith("✗") ? "text-amber-600 dark:text-amber-400" : ""}>
                       {l}
@@ -194,11 +194,11 @@ export function ApplyView() {
               onClick={a.agentFill}
               disabled={filling || prefilling}
               title="Let the AI drive the real form and fill it field-by-field (for tricky / multi-step forms). It never submits."
-              className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:border-brand/40 hover:text-brand disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:border-brand/40 hover:text-brand disabled:opacity-50"
             >
               <MousePointerClick className="size-4" /> Let the AI fill it
             </button>
-            <p className="inline-flex items-center gap-1.5 text-xs text-muted">
+            <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck className="size-3.5 text-emerald-500" /> Never submits — you click Submit yourself.
             </p>
           </div>
@@ -229,7 +229,7 @@ export function ApplyView() {
               <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-500" />
               <div>
                 <span className="font-medium text-emerald-700 dark:text-emerald-400">The real form is now in front, pre-filled.</span>{" "}
-                <span className="text-muted">Review it and click Submit yourself — career-ops never submits for you.</span>
+                <span className="text-muted-foreground">Review it and click Submit yourself — career-ops never submits for you.</span>
               </div>
             </div>
           )}
@@ -316,7 +316,7 @@ function ApplyExitBar() {
     return (
       <div className="co-rise mt-8 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 backdrop-blur-sm">
         <p className="text-sm font-medium text-foreground">Leave this application?</p>
-        <p className="mt-1 text-xs text-muted">Your drafted answers live only on this page. Going back discards them and closes the form.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Your drafted answers live only on this page. Going back discards them and closes the form.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             onClick={leave}
@@ -326,7 +326,7 @@ function ApplyExitBar() {
           </button>
           <button
             onClick={() => setConfirming(false)}
-            className="rounded-md border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:text-foreground max-sm:min-h-[44px]"
+            className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground max-sm:min-h-[44px]"
           >
             Stay here
           </button>
@@ -340,7 +340,7 @@ function ApplyExitBar() {
       <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={() => (needsLeaveConfirmation({ status: a.status, answers: a.answers }) ? setConfirming(true) : leave())}
-          className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-muted transition-colors hover:border-brand/40 hover:text-brand max-sm:min-h-[44px]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:border-brand/40 hover:text-brand max-sm:min-h-[44px]"
         >
           <ArrowLeft className="size-4" /> Back
         </button>
@@ -355,7 +355,7 @@ function ApplyExitBar() {
             {marking ? "Updating your tracker…" : "Mark applied"}
           </button>
         )}
-        {a.n && <span className="text-xs text-muted">Click this once you have submitted the real form yourself.</span>}
+        {a.n && <span className="text-xs text-muted-foreground">Click this once you have submitted the real form yourself.</span>}
       </div>
       {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
     </div>
@@ -375,7 +375,7 @@ function DrivePanel({ steps, filling }: { steps: DriveStep[]; filling?: boolean 
           <MousePointerClick className="size-6 text-brand" />
         </span>
         <div className="font-display text-2xl text-landing">{filling ? "AI is filling the form…" : "Reaching your form…"}</div>
-        <p className="max-w-sm text-sm text-muted">{filling ? "The AI is driving the real form field-by-field on your machine — it never submits; you review and submit." : "The AI is navigating the real application on your machine to reach the form — it never submits."}</p>
+        <p className="max-w-sm text-sm text-muted-foreground">{filling ? "The AI is driving the real form field-by-field on your machine — it never submits; you review and submit." : "The AI is navigating the real application on your machine to reach the form — it never submits."}</p>
       </div>
       {last?.thumb ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -386,7 +386,7 @@ function DrivePanel({ steps, filling }: { steps: DriveStep[]; filling?: boolean 
       {steps.length > 0 && (
         <ol className="mt-3 space-y-1.5 rounded-xl border border-border/70 bg-surface/70 p-3 backdrop-blur-sm">
           {steps.map((s, i) => (
-            <li key={i} className={cn("flex items-center gap-2 text-xs", i === steps.length - 1 ? "text-foreground" : "text-muted")}>
+            <li key={i} className={cn("flex items-center gap-2 text-xs", i === steps.length - 1 ? "text-foreground" : "text-muted-foreground")}>
               <span className="grid size-5 shrink-0 place-items-center rounded-full bg-brand-soft text-[10px] font-semibold text-brand">{s.turn}</span>
               <span className="shrink-0 font-medium">{DRIVE_VERB[s.action] ?? s.action}</span>
               <span className="truncate text-faint">{s.detail}</span>
@@ -421,7 +421,7 @@ function ApplyIssues({ issues }: { issues: ApplyIssue[] }) {
         </div>
       )}
       {infos.map((i, k) => (
-        <div key={k} className="flex items-center gap-1.5 text-xs text-muted">
+        <div key={k} className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Info className="size-3.5 shrink-0 text-faint" /> {i.message}
         </div>
       ))}
@@ -485,7 +485,7 @@ function RotatingStatus() {
     return () => clearInterval(t);
   }, []);
   return (
-    <div key={i} className="co-rise truncate text-xs text-muted">
+    <div key={i} className="co-rise truncate text-xs text-muted-foreground">
       {DRAFT_MSGS[i]}
     </div>
   );
@@ -500,7 +500,7 @@ function ProcessingHero({ title, subtitle }: { title: string; subtitle: string }
         <Sparkles className="size-7 text-brand" />
       </span>
       <div className="font-display text-3xl text-landing">{title}</div>
-      <p className="max-w-sm text-sm text-muted">{subtitle}</p>
+      <p className="max-w-sm text-sm text-muted-foreground">{subtitle}</p>
     </div>
   );
 }
@@ -575,7 +575,7 @@ function FieldRow({
           ))}
         </select>
       ) : f.type === "checkbox" ? (
-        <label className="flex items-center gap-2 text-sm text-muted">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
           <input type="checkbox" checked={value === "true" || value === "yes"} onChange={(e) => onChange(e.target.checked ? "true" : "")} className="size-4 accent-brand" /> {f.label || "Yes"}
         </label>
       ) : f.type === "file" ? (
@@ -584,7 +584,7 @@ function FieldRow({
             <FileCheck2 className="size-4 shrink-0" /> Your tailored CV (PDF) will be attached automatically — you can swap it on the real form.
           </div>
         ) : (
-          <div className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted">
+          <div className="flex items-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground">
             <Paperclip className="size-4 shrink-0" /> Attach this file yourself on the real form at the handoff.
           </div>
         )

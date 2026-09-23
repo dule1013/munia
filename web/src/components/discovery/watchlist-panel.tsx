@@ -84,7 +84,7 @@ export function WatchlistPanel() {
         <Building2 className="size-5 text-brand" />
         <h3 className="font-medium">Company Watchlist</h3>
       </div>
-      <p className="mt-1 text-sm text-muted">Watch a specific company&apos;s careers page. Munia detects the right way to scan it automatically.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Watch a specific company&apos;s careers page. Munia detects the right way to scan it automatically.</p>
 
       <form onSubmit={addCompany} className="mt-4 flex flex-wrap items-end gap-2">
         <div className="flex-1 min-w-[10rem]">
@@ -118,10 +118,10 @@ export function WatchlistPanel() {
                   <Badge tone="warn">Munia can&apos;t automatically scan this careers page yet</Badge>
                 )}
                 <Badge tone={SCAN_STATUS_TONE[company.scan_status ?? "never_scanned"] ?? "muted"}>{SCAN_STATUS_LABEL[company.scan_status ?? "never_scanned"] ?? company.scan_status}</Badge>
-                <button onClick={() => toggleEnabled(company)} disabled={busy} className="text-xs text-muted underline-offset-2 hover:underline">
+                <button onClick={() => toggleEnabled(company)} disabled={busy} className="text-xs text-muted-foreground underline-offset-2 hover:underline">
                   {company.enabled ? "Disable" : "Enable"}
                 </button>
-                <button onClick={() => remove(company)} disabled={busy} className="text-muted hover:text-red-600 dark:hover:text-red-400">
+                <button onClick={() => remove(company)} disabled={busy} className="text-muted-foreground hover:text-red-600 dark:hover:text-red-400">
                   <Trash2 className="size-4" />
                 </button>
               </div>

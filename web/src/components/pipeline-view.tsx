@@ -124,7 +124,7 @@ export function PipelineView({
       <div className="flex items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl tracking-tight text-landing">Pipeline</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-sm text-muted-foreground">
             <span className="tabular-nums">{pendingInbox.length}</span> in inbox ·{" "}
             <span className="tabular-nums">{applications.length}</span> tracked
           </p>
@@ -162,7 +162,7 @@ export function PipelineView({
                 "-mb-px inline-flex items-center justify-center gap-1 border-b-2 px-3 py-2 text-xs font-medium transition-colors max-sm:min-h-[44px]",
                 tab === t
                   ? "border-brand text-foreground"
-                  : "border-transparent text-muted hover:text-foreground",
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {t} <span className="text-faint tabular-nums">{count}</span>
@@ -228,13 +228,13 @@ export function PipelineView({
                         {company.label}
                       </Link>
                     </td>
-                  <td className="px-4 py-3 text-muted">
+                  <td className="px-4 py-3 text-muted-foreground">
                     <Link href={`/pipeline/${r.n}`}>{r.role}</Link>
                   </td>
                   <td className="px-4 py-3">
                     <Badge tone={scoreTone(r.score)}>{r.score || "—"}</Badge>
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-muted">
+                  <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
                     <span className="inline-flex items-center gap-1.5">
                       <span className={cn("size-1.5 shrink-0 rounded-full", statusDot(r.status))} />
                       {r.status}
@@ -250,7 +250,7 @@ export function PipelineView({
       ) : (
         <div className="mt-4 rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-12 text-center">
           <p className="font-display text-lg">No matches</p>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-muted">Try a different tab or clear the search.</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">Try a different tab or clear the search.</p>
         </div>
       )}
     </div>
@@ -264,7 +264,7 @@ function InboxEmpty({ count, filtered }: { count: number; filtered: boolean }) {
     return (
       <div className="mt-4 rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-12 text-center">
         <p className="font-display text-lg">No matches</p>
-        <p className="mx-auto mt-1 max-w-sm text-sm text-muted">Clear the search to see the full inbox.</p>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">Clear the search to see the full inbox.</p>
       </div>
     );
   }
@@ -274,24 +274,24 @@ function InboxEmpty({ count, filtered }: { count: number; filtered: boolean }) {
         <span className="size-2.5 rounded-full bg-foreground/15" aria-hidden="true" />
         <span className="size-2.5 rounded-full bg-foreground/15" aria-hidden="true" />
         <span className="size-2.5 rounded-full bg-foreground/15" aria-hidden="true" />
-        <span className="ml-3 font-mono text-xs tracking-wide text-muted">career-ops · inbox</span>
+        <span className="ml-3 font-mono text-xs tracking-wide text-muted-foreground">career-ops · inbox</span>
       </div>
       <div className="px-6 py-10 text-center">
         <p className="font-display text-lg">
           Your <span className="text-brand">inbox</span> is empty.
         </p>
         {count > 0 ? (
-          <p className="mx-auto mt-2 max-w-sm text-sm text-muted">Nothing pending right now.</p>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Nothing pending right now.</p>
         ) : (
           <>
-            <p className="mx-auto mt-2 max-w-sm text-sm text-muted">Find roles that match your CV — free, no tokens spent.</p>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Find roles that match your CV — free, no tokens spent.</p>
             <Link
               href="/explore?run=1"
               className="mt-5 inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-medium text-brand-foreground shadow-sm transition-all duration-200 hover:bg-brand-200 hover:-translate-y-0.5 hover:shadow-md"
             >
               <Compass className="size-4" /> Run your first free scan <ArrowRight className="size-4" />
             </Link>
-            <p className="mx-auto mt-4 max-w-sm text-xs text-muted">
+            <p className="mx-auto mt-4 max-w-sm text-xs text-muted-foreground">
               Prefer the terminal? Run <code className="rounded bg-surface-hover px-1 py-0.5 font-mono">career-ops scan</code>, or add job URLs to{" "}
               <code className="rounded bg-surface-hover px-1 py-0.5 font-mono">data/pipeline.md</code>.
             </p>

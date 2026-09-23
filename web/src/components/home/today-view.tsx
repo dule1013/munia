@@ -46,7 +46,7 @@ export function TodayView() {
         <h1 className={`${instrumentSerif.className} text-3xl text-landing`}>Today</h1>
       </div>
       {summary && (
-        <p className="mt-2 text-sm text-muted">
+        <p className="mt-2 text-sm text-muted-foreground">
           {summary.new > 0 && (
             <>
               <span className="font-semibold text-foreground">{summary.new}</span> new strong match{summary.new === 1 ? "" : "es"} ·{" "}
@@ -58,7 +58,7 @@ export function TodayView() {
 
       {items.length === 0 ? (
         <Card className="mt-6">
-          <p className="text-sm text-muted">No strong matches yet. Munia keeps searching every morning — check{" "}
+          <p className="text-sm text-muted-foreground">No strong matches yet. Munia keeps searching every morning — check{" "}
             <Link href="/pipeline" className="font-medium underline underline-offset-2">Pipeline → Inbox</Link> for everything plausibly worth a look in the meantime.
           </p>
         </Card>
@@ -75,7 +75,7 @@ export function TodayView() {
                         <h3 className="font-medium">{item.job.title}</h3>
                         <Badge tone="good">Strong match</Badge>
                       </div>
-                      <p className="text-sm text-muted">
+                      <p className="text-sm text-muted-foreground">
                         {item.job.company}
                         {item.job.location ? ` · ${item.job.location}` : ""}
                         {daysAgo(item.job.posted_at) ? ` · ${daysAgo(item.job.posted_at)}` : ""}

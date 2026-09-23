@@ -23,12 +23,62 @@ from app.modules.discovery.sources import METHOD_DIRECT_SCAN, METHOD_REVERSE_ATS
 from app.modules.discovery.watchlist_scan import run_watchlist_scan
 from app.modules.integrations.models import CandidateIntegration
 from app.modules.jobs.models import Job
+from app.modules.jobs.service import canonicalize_url
 from app.modules.migration.parsers import pipeline_rows, shortlist_rows
 from app.modules.migration.service import import_pipeline
 from app.modules.pipeline.fit_assessment import NoAIConfigured, apply_assessment, assess_fit
 from app.modules.pipeline.hosted_triage import triage_candidate_hosted
 from app.modules.pipeline.models import CandidateJob
 from app.modules.pipeline.service import INBOX_TRIAGE_RESULTS, apply_location_eligibility, has_candidate_decision
+
+
+def enrich_jobs_from_scan_json(jobs_by_url: dict[str, Job], offers: list[dict]) -> None:
+    """Fill description/location/posted_at/external_source_id on Jobs that
+    import_pipeline just created/updated from data/pipeline.md, using the
+    SAME scan-ats-full.mjs --json invocation's `offers[]` (job-enrichment
+    audit, #3811) — no second fetch, since the provider already returned
+    this data for free (Greenhouse/Lever/Ashby; absent for iCIMS/Workday).
+
+    Matches by canonicalized URL rather than the raw string `import_pipeline`
+    keys `jobs_by_url` by, since data/pipeline.md's writer sanitizes/escapes
+    the URL for markdown (scan.mjs's sanitizePipelineUrl) while the --json
+    payload carries the raw one — canonicalize_url() normalizes both sides
+    identically regardless of that formatting difference.
+
+    Never overwrites a field that already has a value — a weaker/blank
+    incoming field must not erase richer existing Job data.
+    """
+    if not jobs_by_url or not offers:
+        return
+    by_canonical_url = {canonicalize_url(job.posting_url): job for job in jobs_by_url.values()}
+    for offer in offers:
+        url = offer.get("url")
+        if not url:
+            continue
+        job = by_canonical_url.get(canonicalize_url(url))
+        if job is None:
+            continue
+        description = offer.get("description")
+        if description and not job.description:
+            job.description = description
+        location = offer.get("location")
+        if location and not job.location:
+            job.location = location
+        posted_at = _parse_json_offer_date(offer.get("postedAt"))
+        if posted_at and not job.posted_at:
+            job.posted_at = posted_at
+        external_id = offer.get("externalId")
+        if external_id and not job.external_source_id:
+            job.external_source_id = external_id
+
+
+def _parse_json_offer_date(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    except (TypeError, ValueError):
+        return None
 
 
 async def populate_candidate_jobs(db: AsyncSession) -> int:
@@ -122,6 +172,7 @@ async def rotating_reverse_discovery(db: AsyncSession, settings: Settings, ats: 
             overall_status = "error"
             last_error = (result.stderr or "")[-2000:] or "scan failed"
             continue
+        payload = None
         try:
             payload = json.loads(result.stdout)
             dataset_size = payload.get("datasetSize", {}).get(ats) or dataset_size
@@ -129,9 +180,19 @@ async def rotating_reverse_discovery(db: AsyncSession, settings: Settings, ats: 
             pass
         workspace = settings.career_ops_workspace_root / str(representative.id)
         before = len(list(await db.scalars(select(Job.id))))
-        await import_pipeline(db, representative, workspace, method=METHOD_REVERSE_ATS, default_source=ats)
+        jobs_by_url = await import_pipeline(db, representative, workspace, method=METHOD_REVERSE_ATS, default_source=ats)
         after = len(list(await db.scalars(select(Job.id))))
         discovered += max(0, after - before)
+        # Job-enrichment audit (#3811): data/pipeline.md (import_pipeline's
+        # only input) never carries description/externalId — that's the
+        # local single-user CLI's own long-standing, deliberate contract, not
+        # something to change here. The --json payload this same subprocess
+        # call already produced DOES carry them when the provider returned
+        # them for free (Greenhouse/Lever/Ashby), so enrich the just-imported
+        # Jobs from it directly instead of a second fetch.
+        if payload:
+            enrich_jobs_from_scan_json(jobs_by_url, payload.get("offers") or [])
+            await db.commit()
 
     elapsed_seconds = (datetime.now(timezone.utc) - started_at).total_seconds()
     cursor = await get_or_create_cursor(db, ats)  # re-fetch: prior commits may have expired it

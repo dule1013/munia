@@ -503,10 +503,10 @@ export function AssistantConsole() {
               <div className="text-sm font-semibold tracking-tight">Assistant</div>
               <div className="text-xs text-faint">{cliId ? `via ${cliId}` : "no CLI configured"}</div>
             </div>
-            <Button variant="ghost" size="icon" onClick={resetChat} className="text-muted" aria-label="New chat" title="New chat">
+            <Button variant="ghost" size="icon" onClick={resetChat} className="text-muted-foreground" aria-label="New chat" title="New chat">
               <RotateCcw className="size-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => setOpen(false)} className="text-muted" aria-label="Close assistant">
+            <Button variant="ghost" size="icon" onClick={() => setOpen(false)} className="text-muted-foreground" aria-label="Close assistant">
               <X className="size-4" />
             </Button>
           </header>
@@ -526,7 +526,7 @@ export function AssistantConsole() {
                     {m.role === "user" ? (
                       msgText(m)
                     ) : !hasVisible && busy && isLast ? (
-                      <Loader2 className="size-4 animate-spin text-muted" />
+                      <Loader2 className="size-4 animate-spin text-muted-foreground" />
                     ) : (
                       <div className="space-y-2">
                         {m.parts.map((p, j) => (
@@ -547,7 +547,7 @@ export function AssistantConsole() {
                 <button
                   key={i}
                   onClick={() => send(s.send)}
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-surface/60 px-2.5 py-1 text-xs text-muted transition-colors hover:border-brand/40 hover:bg-brand-soft hover:text-brand"
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-surface/60 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-brand/40 hover:bg-brand-soft hover:text-brand"
                 >
                   <Sparkles className="size-3 text-brand/70" />
                   {s.label}
@@ -560,7 +560,7 @@ export function AssistantConsole() {
             <Link
               href="/config"
               onClick={() => setOpen(false)}
-              className="mx-4 mb-2 flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+              className="mx-4 mb-2 flex items-center gap-2 rounded-lg border border-border bg-surface/50 px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
             >
               <Settings className="size-3.5" /> Pick a CLI in Config to enable the assistant →
             </Link>
@@ -683,7 +683,7 @@ function PartView({
             </button>
             <button
               onClick={() => onConfirm(part.cid, false)}
-              className="rounded-full border border-border px-3 py-1 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+              className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
             >
               Cancel
             </button>

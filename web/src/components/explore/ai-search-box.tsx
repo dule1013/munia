@@ -15,9 +15,9 @@ const EXAMPLES = [
 // per the Tailwind v4 stale-CSS HMR gotcha.
 const STYLE = `
 .co-aibox{position:relative;border-radius:1.1rem;border:1px solid var(--co-border,hsl(0 0% 50% /.22));background:color-mix(in srgb, var(--bg) 55%, transparent);transition:border-color .3s,box-shadow .3s}
-.co-aibox::before{content:"";position:absolute;inset:-1px;border-radius:1.1rem;padding:1px;background:radial-gradient(70% 140% at 28% -10%, hsl(26 82% 55% /.45), transparent 62%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.45;transition:opacity .3s;pointer-events:none}
+.co-aibox::before{content:"";position:absolute;inset:-1px;border-radius:1.1rem;padding:1px;background:radial-gradient(70% 140% at 28% -10%, hsl(217 82% 55% /.45), transparent 62%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;opacity:.45;transition:opacity .3s;pointer-events:none}
 .co-aibox:focus-within::before{opacity:1}
-.co-aibox:focus-within{border-color:hsl(26 73% 51% /.5);box-shadow:0 0 0 4px hsl(26 73% 51% /.09)}
+.co-aibox:focus-within{border-color:hsl(217 73% 51% /.5);box-shadow:0 0 0 4px hsl(217 73% 51% /.09)}
 .co-aibox textarea{width:100%;resize:none;background:transparent;border:none;outline:none;font-size:16px;line-height:1.5;color:inherit}
 .co-aibox textarea::placeholder{color:var(--co-faint,hsl(0 0% 58%))}
 @media(prefers-reduced-motion:reduce){.co-aibox,.co-aibox::before{transition:none}}
@@ -71,7 +71,7 @@ export function AiSearchBox({
           placeholder="“AI infra at climate startups, remote EU, not staff-level” — plain language, your words"
         />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <span className="text-[12px] text-muted">
+          <span className="text-[12px] text-muted-foreground">
             {cliConfigured ? (
               <>
                 Reads the public web with <span className="text-foreground">{cliName || "your CLI"}</span> — it costs your tokens.
@@ -99,7 +99,7 @@ export function AiSearchBox({
             key={ex}
             type="button"
             onClick={() => onIntent(ex)}
-            className="rounded-full border border-border bg-surface/40 px-3 py-1.5 text-[12px] text-muted transition hover:border-brand/40 hover:text-brand"
+            className="rounded-full border border-border bg-surface/40 px-3 py-1.5 text-[12px] text-muted-foreground transition hover:border-brand/40 hover:text-brand"
           >
             {ex}
           </button>

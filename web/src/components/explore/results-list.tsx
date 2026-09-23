@@ -59,7 +59,7 @@ export function ResultsList({ offers }: { offers: EnrichedOffer[] }) {
                 key={s}
                 type="button"
                 onClick={() => setSort(s)}
-                className={cn("rounded-md px-2.5 py-1 font-medium capitalize transition-colors", sort === s ? "bg-brand-soft text-brand" : "text-muted hover:text-foreground")}
+                className={cn("rounded-md px-2.5 py-1 font-medium capitalize transition-colors", sort === s ? "bg-brand-soft text-brand" : "text-muted-foreground hover:text-foreground")}
               >
                 {s}
               </button>

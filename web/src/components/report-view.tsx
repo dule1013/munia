@@ -84,7 +84,7 @@ export function ReportView({
     <div className="report-detail mx-auto w-full max-w-[120rem] px-4 py-8 sm:px-6 lg:px-8">
       <Link
         href="/pipeline"
-        className="inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-brand"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-brand"
       >
         <ArrowLeft className="size-4" /> Pipeline
       </Link>
@@ -97,7 +97,7 @@ export function ReportView({
             {company?.label ?? meta?.title ?? `Report #${id}`}
           </h1>
         </div>
-        {app?.role && <p className="mt-1 text-muted">{app.role}</p>}
+        {app?.role && <p className="mt-1 text-muted-foreground">{app.role}</p>}
 
         <div className="mt-4 flex flex-wrap items-center gap-2.5">
           {score && <Badge tone={scoreTone(score)}>{score}</Badge>}
@@ -133,7 +133,7 @@ export function ReportView({
         )}
 
         {(archetype || date || (url && url.startsWith("http"))) && (
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
             {archetype && <span className="max-w-full truncate">{archetype}</span>}
             {date && <span className="tabular-nums text-faint">{date}</span>}
             {url && url.startsWith("http") && (
@@ -221,7 +221,7 @@ export function ReportView({
                     </div>
                     {machine.map((s, i) => (
                       <details key={i} className="group mt-2 overflow-hidden rounded-xl border border-border/60 bg-surface/20">
-                        <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 px-4 py-3 font-mono text-xs text-muted transition-colors hover:bg-surface-hover">
+                        <summary className="flex min-h-[44px] cursor-pointer list-none items-center gap-2 px-4 py-3 font-mono text-xs text-muted-foreground transition-colors hover:bg-surface-hover">
                           {cleanHeading(s.heading)}
                           <ChevronDown className="ml-auto size-4 shrink-0 text-faint transition-transform group-open:rotate-180" />
                         </summary>
@@ -238,7 +238,7 @@ export function ReportView({
           <ScoreMethodology />
         </>
       ) : (
-        <div className="mt-8 flex items-center gap-3 rounded-2xl border border-dashed border-border bg-surface/30 p-5 text-sm text-muted">
+        <div className="mt-8 flex items-center gap-3 rounded-2xl border border-dashed border-border bg-surface/30 p-5 text-sm text-muted-foreground">
           <FileText className="size-5 shrink-0 text-faint" />
           No report file found for #{id} in <code className="text-foreground">reports/</code>.
         </div>

@@ -70,18 +70,18 @@ export function TriageRow({
         <a href={job.url} target="_blank" rel="noopener noreferrer" className="group/link inline-flex max-w-full items-center gap-1 text-sm hover:text-brand">
           <span className="truncate">
             <span className="font-medium text-foreground group-hover/link:text-brand">{job.company}</span>
-            <span className="text-muted"> · {job.role}</span>
+            <span className="text-muted-foreground"> · {job.role}</span>
           </span>
           <ExternalLink className="size-3 shrink-0 text-faint" />
         </a>
         <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-faint">
           {job.location && <span>{job.location}</span>}
-          {(job.scanSource || source) && <span className="rounded bg-surface-hover px-1 py-px font-medium text-muted">{job.scanSource || (source ? ATS_LABEL[source] : "")}</span>}
+          {(job.scanSource || source) && <span className="rounded bg-surface-hover px-1 py-px font-medium text-muted-foreground">{job.scanSource || (source ? ATS_LABEL[source] : "")}</span>}
           {ago && <span>{ago}</span>}
           {job.eligibility && <span className="font-medium text-brand-text">{job.eligibility}</span>}
-          {!evaluated && <span className="italic text-muted">not scored</span>}
+          {!evaluated && <span className="italic text-muted-foreground">not scored</span>}
         </p>
-        {job.triageReason && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">{job.triageReason}</p>}
+        {job.triageReason && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{job.triageReason}</p>}
       </div>
 
       {/* EVALUADA state (right-aligned, visually distinct from raw rows) */}
@@ -105,7 +105,7 @@ export function TriageRow({
             aria-pressed={shortlisted}
             className={cn(
               "inline-flex items-center justify-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors max-sm:min-h-[44px] max-sm:min-w-[44px]",
-              shortlisted ? "text-brand" : "text-muted hover:bg-surface-hover hover:text-brand",
+              shortlisted ? "text-brand" : "text-muted-foreground hover:bg-surface-hover hover:text-brand",
             )}
           >
             {shortlisted ? <BookmarkCheck className="size-4" /> : <Bookmark className="size-4" />}

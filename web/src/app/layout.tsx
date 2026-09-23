@@ -21,13 +21,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
   // Default (corrected to the real theme before paint by THEME_SCRIPT, then kept
   // in sync by the theme toggle). Dark flows seamlessly into the black island.
-  themeColor: "#0a0a0a",
+  themeColor: "#1a1a1a",
 };
 
 // Before paint: set the theme class AND tint the browser chrome (theme-color) to
 // match — so Safari's status bar / URL bar unify with the header instead of a
-// jarring light seam. Matches --bg (light #f7f6f3 / dark #0a0a0a).
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('career-ops:theme');var d=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement('meta');m.setAttribute('name','theme-color');document.head.appendChild(m);}m.setAttribute('content',d?'#0a0a0a':'#f7f6f3');}catch(e){document.documentElement.classList.add('dark');}})();`;
+// jarring light seam. Matches --bg (light #fafafa / dark #1a1a1a).
+const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('career-ops:theme');var d=t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');var m=document.querySelector('meta[name="theme-color"]');if(!m){m=document.createElement('meta');m.setAttribute('name','theme-color');document.head.appendChild(m);}m.setAttribute('content',d?'#1a1a1a':'#fafafa');}catch(e){document.documentElement.classList.add('dark');}})();`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

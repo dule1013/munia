@@ -85,16 +85,16 @@ export function CadenceSettings() {
 
   return (
     <div>
-      <label className="mt-8 mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+      <label className="mt-8 mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         Follow-up cadence
       </label>
       <div className="rounded-xl border border-border bg-surface/50 p-4">
         <p className="text-xs leading-relaxed text-faint">
-          When the <span className="text-muted">Follow-ups</span> tracker nudges you. Saved to{" "}
-          <span className="font-mono text-muted">config/profile.yml</span> — the CLI uses the same values.
+          When the <span className="text-muted-foreground">Follow-ups</span> tracker nudges you. Saved to{" "}
+          <span className="font-mono text-muted-foreground">config/profile.yml</span> — the CLI uses the same values.
         </p>
         {loadError ? (
-          <div className="mt-3 text-sm text-muted">
+          <div className="mt-3 text-sm text-muted-foreground">
             <p className="text-red-500">
               Couldn&apos;t read your current cadence settings — not showing defaults, to avoid overwriting real values in{" "}
               <span className="font-mono">config/profile.yml</span>.
@@ -108,7 +108,7 @@ export function CadenceSettings() {
             </button>
           </div>
         ) : values === null ? (
-          <div className="mt-3 flex items-center gap-2 text-sm text-muted">
+          <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" /> Loading…
           </div>
         ) : (

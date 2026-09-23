@@ -33,6 +33,6 @@ export function CandidateGate({ children }: { children: React.ReactNode }) {
 
   if (!portalEnabled || authPage) return children;
   if (error) return <div className="flex min-h-screen items-center justify-center px-6 text-center text-sm text-danger">{error}</div>;
-  if (!isLoaded || !isSignedIn || !ready) return <div className="flex min-h-screen items-center justify-center text-sm text-muted">Loading your workspace…</div>;
+  if (!isLoaded || !isSignedIn || !ready) return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading your workspace…</div>;
   return children;
 }

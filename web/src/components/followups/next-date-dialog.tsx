@@ -81,7 +81,7 @@ export function NextDateDialog({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-lg">Pin next follow-up</h2>
-            <p className="mt-0.5 text-sm text-muted">
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {entry.company} · {entry.role} <span className="text-faint">(#{entry.num})</span>
             </p>
           </div>
@@ -97,7 +97,7 @@ export function NextDateDialog({
           }}
           className="mt-4 space-y-3"
         >
-          <label className="block text-xs font-medium text-muted">
+          <label className="block text-xs font-medium text-muted-foreground">
             Next follow-up date
             <input type="date" required value={date} min={today} onChange={(e) => setDate(e.target.value)} className={cn(inputCls, "mt-1")} />
           </label>
@@ -126,13 +126,13 @@ export function NextDateDialog({
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void call("DELETE", { appNum: entry.num }, "clear")}
-                className="mr-auto inline-flex items-center gap-1.5 rounded-md px-2.5 py-2 text-xs font-medium text-muted transition-colors hover:text-red-500 disabled:pointer-events-none disabled:opacity-60"
+                className="mr-auto inline-flex items-center gap-1.5 rounded-md px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-red-500 disabled:pointer-events-none disabled:opacity-60"
                 title={`Currently pinned to ${entry.nextOverride}`}
               >
                 {busy === "clear" ? <Loader2 className="size-3.5 animate-spin" /> : <PinOff className="size-3.5" />} Clear pin
               </button>
             )}
-            <button type="button" onClick={onClose} className="rounded-md px-3 py-2 text-sm text-muted transition hover:text-foreground">
+            <button type="button" onClick={onClose} className="rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground">
               Cancel
             </button>
             <button

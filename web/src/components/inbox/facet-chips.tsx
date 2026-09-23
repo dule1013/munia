@@ -58,7 +58,7 @@ export function FacetChips({
             className="w-full rounded-lg border border-border bg-surface/60 py-2 pl-9 pr-3 text-sm outline-none transition-colors placeholder:text-faint focus:border-brand/50 focus-visible:ring-2 focus-visible:ring-brand/40 max-sm:min-h-[44px]"
           />
         </div>
-        <span className="shrink-0 text-xs text-muted">
+        <span className="shrink-0 text-xs text-muted-foreground">
           <span className="tabular-nums text-foreground">{resultCount}</span>
           <span className="text-faint">/{totalCount}</span>
         </span>
@@ -75,7 +75,7 @@ export function FacetChips({
               onClick={() => setWithin(within === w.days ? null : w.days)}
               className={cn(
                 "rounded-md px-2.5 text-xs font-medium transition-colors max-sm:min-h-[44px]",
-                within === w.days ? "bg-brand-soft text-brand" : "text-muted hover:text-foreground",
+                within === w.days ? "bg-brand-soft text-brand" : "text-muted-foreground hover:text-foreground",
               )}
             >
               {w.label}
@@ -131,7 +131,7 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       onClick={onClick}
       className={cn(
         "shrink-0 rounded-full border px-2.5 text-xs font-medium transition-colors max-sm:min-h-[44px]",
-        on ? "border-brand/40 bg-brand-soft text-brand" : "border-border text-muted hover:text-foreground",
+        on ? "border-brand/40 bg-brand-soft text-brand" : "border-border text-muted-foreground hover:text-foreground",
       )}
     >
       {children}

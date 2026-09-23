@@ -15,7 +15,7 @@ export function Badge({
     warn: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
     bad: "bg-red-500/15 text-red-700 dark:text-red-400",
     info: "bg-sky-500/15 text-sky-700 dark:text-sky-400",
-    muted: "bg-surface-hover text-muted",
+    muted: "bg-surface-hover text-muted-foreground",
   } as const;
   return (
     <span

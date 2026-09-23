@@ -66,7 +66,7 @@ export function FollowUpCard({ followup, onLogged }: { followup: FollowUp; onLog
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm">
             <span className="font-medium text-foreground">{followup.company}</span>
-            {followup.role && <span className="text-muted"> · {followup.role}</span>}
+            {followup.role && <span className="text-muted-foreground"> · {followup.role}</span>}
           </p>
           <p className="flex items-center gap-1 text-[11px] text-faint">
             <Clock className="size-3" /> {followup.appliedDate ? `applied ${followup.appliedDate}` : "follow-up due"}

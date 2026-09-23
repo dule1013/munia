@@ -19,7 +19,7 @@ export function ThemeToggle({ className }: { className?: string }) {
     setDark(next);
     document.documentElement.classList.toggle("dark", next);
     // keep the browser chrome (Safari status bar / Dynamic Island) tinted to match
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next ? "#0a0a0a" : "#f7f6f3");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", next ? "#1a1a1a" : "#fafafa");
     try {
       localStorage.setItem(KEY, next ? "dark" : "light");
     } catch {
@@ -37,7 +37,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       onClick={toggle}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       title={dark ? "Light mode" : "Dark mode"}
-      className={cn("text-muted", className)}
+      className={cn("text-muted-foreground", className)}
     >
       {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
     </Button>

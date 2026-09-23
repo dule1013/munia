@@ -115,6 +115,7 @@ try {
   // postings shape: [{ text, hostedUrl, categories: {location}, descriptionPlain, createdAt }].
   const sample = [
     {
+      id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
       text: 'Staff Platform Engineer',
       hostedUrl: 'https://jobs.lever.co/acme/1111-staff-platform-engineer',
       categories: { location: 'Remote — Europe', team: 'Platform', commitment: 'Full-time' },
@@ -191,6 +192,16 @@ try {
   if (fetched[1]?.description === '' && fetched[1]?.postedAt === undefined)
     pass('lever.fetch() coerces a non-string descriptionPlain to "" and a non-number createdAt to undefined');
   else fail(`lever.fetch() row 1 = ${JSON.stringify(fetched[1])}`);
+
+  // Job-enrichment audit (#3811): Lever's own posting id is in the same v0
+  // payload but was never propagated to the normalized job.
+  if (fetched[0]?.id === 'a1b2c3d4-e5f6-7890-abcd-ef1234567890')
+    pass('lever.fetch() propagates the posting\'s own string id');
+  else fail(`lever.fetch() row 0 id = ${JSON.stringify(fetched[0]?.id)}`);
+
+  if (fetched[2]?.id === undefined)
+    pass('lever.fetch() leaves id undefined when the posting has none');
+  else fail(`lever.fetch() row 2 id = ${JSON.stringify(fetched[2]?.id)}`);
 
   if (fetched[2]?.title === '' && fetched[2]?.url === '' && fetched[2]?.location === ''
       && fetched[2]?.company === 'Acme' && fetched[2]?.description === '' && fetched[2]?.postedAt === undefined)

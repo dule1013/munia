@@ -218,6 +218,8 @@ export default {
       description: typeof j.descriptionPlain === 'string' ? j.descriptionPlain : '',
       salary: parseCompensation(j),
       postedAt: toEpochMs(j.publishedAt),
+      // Ashby's own posting id — same payload, not previously propagated.
+      id: typeof j.id === 'string' ? j.id : undefined,
     }));
   },
 };

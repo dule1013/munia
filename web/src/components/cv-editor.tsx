@@ -75,7 +75,7 @@ export function CvEditor(props: Props) {
 
   return (
     <div className="mx-auto w-full max-w-[120rem] px-4 py-8 sm:px-6 lg:px-8">
-      <Link href="/cv" className="inline-flex items-center gap-1.5 text-sm text-muted hover:text-brand">
+      <Link href="/cv" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-brand">
         <ArrowLeft className="size-4" /> CV workspace
       </Link>
       <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
@@ -85,7 +85,7 @@ export function CvEditor(props: Props) {
             {tailored ? <Badge tone="muted">Tailored CV</Badge> : <Badge tone="good">Source of truth</Badge>}
             {manuallyEdited && <Badge tone="warn">Manually edited</Badge>}
           </div>
-          <p className="mt-1 text-sm text-muted">{subtitle}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p>
           {!tailored && !exists && loaded && <p className="mt-1 text-xs text-faint">No cv.md yet — start typing to create it.</p>}
           {tailored && (
             <Link href={`/pipeline/${props.applicationId}`} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brand hover:underline">
@@ -95,7 +95,7 @@ export function CvEditor(props: Props) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {tailored && props.pdfReady && (
-            <a href={pdfHref} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-muted hover:border-brand/40 hover:text-brand">
+            <a href={pdfHref} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:border-brand/40 hover:text-brand">
               View PDF <ExternalLink className="size-3.5" />
             </a>
           )}
@@ -105,7 +105,7 @@ export function CvEditor(props: Props) {
             disabled={saving || !dirty}
             className={cn(
               "inline-flex items-center justify-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-colors max-sm:min-h-[44px]",
-              dirty ? "bg-brand text-brand-foreground hover:bg-brand-200" : "border border-border bg-surface text-muted",
+              dirty ? "bg-brand text-brand-foreground hover:bg-brand-200" : "border border-border bg-surface text-muted-foreground",
             )}
           >
             {saving ? <Loader2 className="size-4 animate-spin" /> : saved ? <Check className="size-4" /> : null}
@@ -117,7 +117,7 @@ export function CvEditor(props: Props) {
       {error && <div className="mt-4 whitespace-pre-wrap rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-700 dark:text-red-300">{error}</div>}
 
       {!loaded ? (
-        <div className="mt-6 text-sm text-muted">Loading…</div>
+        <div className="mt-6 text-sm text-muted-foreground">Loading…</div>
       ) : (
         <div className="mt-6 grid min-w-0 gap-4 xl:grid-cols-2">
           <textarea
@@ -133,7 +133,7 @@ export function CvEditor(props: Props) {
             </div>
           ) : (
             <article className="report-prose min-h-[72vh] min-w-0 overflow-auto rounded-2xl border border-border bg-surface/30 p-5">
-              {content.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown> : <p className="text-muted">Preview appears here.</p>}
+              {content.trim() ? <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown> : <p className="text-muted-foreground">Preview appears here.</p>}
             </article>
           )}
         </div>

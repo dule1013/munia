@@ -28,13 +28,13 @@ export function MorningStatusPanel() {
   return (
     <Card>
       <h3 className="font-medium">Last morning search</h3>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 text-sm text-muted-foreground">
         {status.finished_at ? new Date(status.finished_at).toLocaleString() : "in progress"} — {status.status === "completed" ? "Completed" : status.status === "completed_with_warnings" ? "Completed with warnings" : status.status === "failed" ? "Failed" : "Running"}
       </p>
       {Object.keys(status.sources).length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
           {Object.entries(status.sources).map(([source, sourceStatus]) => (
-            <li key={source} className="flex items-center gap-1.5 text-sm text-muted">
+            <li key={source} className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <SourceIcon status={sourceStatus} /> {SOURCE_LABEL[source] || source}
             </li>
           ))}

@@ -10,7 +10,7 @@ const TONE_CHIP = {
   good: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
   warn: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
   bad: "bg-red-500/15 text-red-700 dark:text-red-400",
-  muted: "bg-surface-hover text-muted",
+  muted: "bg-surface-hover text-muted-foreground",
 } as const;
 
 export default function JobsHistory() {
@@ -21,14 +21,14 @@ export default function JobsHistory() {
       <div className="flex items-end justify-between">
         <div>
           <h1 className="font-display text-2xl tracking-tight text-landing">Workers</h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-sm text-muted-foreground">
             Every evaluation you ran — a persistent log. <span className="tabular-nums">{jobs.length}</span> total.
           </p>
         </div>
         {jobs.some((j) => j.status !== "running") && (
           <button
             onClick={clearFinished}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-muted transition-colors hover:bg-surface-hover hover:text-foreground"
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
           >
             <Trash2 className="size-3.5" /> Clear finished
           </button>
@@ -36,7 +36,7 @@ export default function JobsHistory() {
       </div>
 
       {jobs.length === 0 ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-12 text-center text-sm text-muted">
+        <div className="mt-8 rounded-2xl border border-dashed border-border bg-surface/30 px-6 py-12 text-center text-sm text-muted-foreground">
           No workers yet. Hit <span className="text-foreground">Evaluate</span> on an inbox posting to spin one up.
         </div>
       ) : (
@@ -56,7 +56,7 @@ export default function JobsHistory() {
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium">{j.title}</div>
                     {(j.subtitle || j.result?.summary) && (
-                      <div className="truncate text-xs text-muted">{j.result?.summary || j.subtitle}</div>
+                      <div className="truncate text-xs text-muted-foreground">{j.result?.summary || j.subtitle}</div>
                     )}
                   </div>
                   {j.result?.score != null && (

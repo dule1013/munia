@@ -29,7 +29,7 @@ export function CopyableCommand({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-xl border border-border bg-surface py-1.5 pl-4 pr-1.5 font-mono text-sm text-muted shadow-sm",
+        "flex items-center gap-2 rounded-xl border border-border bg-surface py-1.5 pl-4 pr-1.5 font-mono text-sm text-muted-foreground shadow-sm",
         className,
       )}
     >
@@ -52,7 +52,7 @@ export function CopyableCommand({
         onClick={handleCopy}
         aria-label={copied ? "Copied to clipboard" : "Copy command"}
         title={copied ? "Copied" : "Copy"}
-        className="shrink-0 text-muted"
+        className="shrink-0 text-muted-foreground"
       >
         {copied ? (
           <CheckIcon className="size-4 text-brand" aria-hidden="true" />

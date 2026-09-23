@@ -91,22 +91,22 @@ export function LinkedInPanel() {
             <h3 className="font-medium">LinkedIn Job Alerts</h3>
             {!loading && <Badge tone={STATUS_TONE[state] ?? "muted"}>{STATUS_LABEL[state] ?? state}</Badge>}
           </div>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-sm text-muted-foreground">
             Munia reads LinkedIn Job Alert emails from your Gmail to discover jobs. It does not log into or scrape LinkedIn, and never sees anything else in your inbox.
           </p>
 
           {loading ? (
             <Loader2 className="mt-3 size-4 animate-spin text-faint" />
           ) : notConfigured ? (
-            <p className="mt-3 rounded-xl border border-dashed border-border bg-surface/30 p-3 text-sm text-muted">Gmail integration isn&apos;t configured on this deployment yet.</p>
+            <p className="mt-3 rounded-xl border border-dashed border-border bg-surface/30 p-3 text-sm text-muted-foreground">Gmail integration isn&apos;t configured on this deployment yet.</p>
           ) : state === "disconnected" ? (
             <Button className="mt-3" onClick={connect} disabled={busy}>
               Connect Gmail
             </Button>
           ) : (
             <div className="mt-3 space-y-2">
-              {status?.account_email && <p className="text-sm text-muted">Account: {status.account_email}</p>}
-              <p className="text-sm text-muted">Last sync: {status?.last_sync_at ? new Date(status.last_sync_at).toLocaleString() : "never"}</p>
+              {status?.account_email && <p className="text-sm text-muted-foreground">Account: {status.account_email}</p>}
+              <p className="text-sm text-muted-foreground">Last sync: {status?.last_sync_at ? new Date(status.last_sync_at).toLocaleString() : "never"}</p>
               {(state === "error" || state === "revoked") && status?.last_error && <p className="text-sm text-red-600 dark:text-red-400">{status.last_error}</p>}
               <div className="flex flex-wrap gap-2 pt-1">
                 {(state === "error" || state === "revoked") && (
@@ -123,7 +123,7 @@ export function LinkedInPanel() {
                   <Unplug className="size-4" /> Disconnect
                 </Button>
               </div>
-              {message && <p className="text-sm text-muted">{message}</p>}
+              {message && <p className="text-sm text-muted-foreground">{message}</p>}
             </div>
           )}
         </div>

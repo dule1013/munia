@@ -127,7 +127,7 @@ export function ExplorerView({
           </div>
         </div>
         {!isResults && (
-          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted">
+          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-muted-foreground">
             {isAi
               ? "Describe the role in plain language — an AI hunts the open web for it, on your own AI. Candidates are unverified until you evaluate."
               : "Scan the public ATS network — Greenhouse, Lever, Ashby, Workday. Fresh postings matched to you, zero tokens. You only spend when you choose to evaluate one."}
@@ -194,7 +194,7 @@ export function ExplorerView({
             <div className="mb-6 rounded-xl border border-border bg-surface/30">
               <button type="button" onClick={() => setRefineOpen((v) => !v)} className="flex w-full items-center gap-2 px-4 py-3 text-sm font-medium text-foreground">
                 <Compass className="size-4 text-brand" /> Refine search
-                <ChevronDown className={cn("ml-auto size-4 text-muted transition-transform", refineOpen && "rotate-180")} />
+                <ChevronDown className={cn("ml-auto size-4 text-muted-foreground transition-transform", refineOpen && "rotate-180")} />
               </button>
               {refineOpen && (
                 <div className="space-y-4 border-t border-border p-4">
@@ -280,7 +280,7 @@ function DiscoverBar({ canDiscover, onDiscover, label }: { canDiscover: boolean;
       >
         <Compass className="size-4" /> {label}
       </button>
-      <span className="inline-flex items-center gap-1.5 text-[12px] text-muted">
+      <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
         <span className="size-1.5 rounded-full bg-emerald-500" />
         Evaluating a role later costs tokens. Discovering never does.
       </span>
@@ -295,7 +295,7 @@ function EmptyState({ tone, title, body, note, onRerun, rerunLabel }: { tone: "g
         <Sparkles className="size-6" />
       </div>
       <h2 className={`${instrumentSerif.className} mt-4 text-2xl text-foreground`}>{title}</h2>
-      <p className="mx-auto mt-1.5 max-w-md text-sm text-muted">{body}</p>
+      <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">{body}</p>
       {note && <p className="mx-auto mt-1 max-w-md text-[12px] text-faint">{note}</p>}
       <button onClick={onRerun} className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface/50 px-3.5 py-2 text-sm font-medium text-foreground transition-colors hover:border-brand/40 hover:text-brand">
         <RotateCcw className="size-4" /> {rerunLabel}
@@ -339,7 +339,7 @@ function DegradedCard({
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-center">
       <AlertTriangle className="mx-auto size-6 text-amber-500" />
       <p className="mt-2 text-sm font-medium text-foreground">{title}</p>
-      <p className="mx-auto mt-1 max-w-md text-[13px] text-muted">{body}</p>
+      <p className="mx-auto mt-1 max-w-md text-[13px] text-muted-foreground">{body}</p>
       <button onClick={onRetry} className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-brand-soft px-3 py-1.5 text-sm font-medium text-brand">
         <RotateCcw className="size-4" /> Retry the scan
       </button>
@@ -378,7 +378,7 @@ function FailedCard({ msg, scannerMissing, onRetry }: { msg: string; scannerMiss
           <Compass className="size-6" />
         </div>
         <h2 className={`${instrumentSerif.className} mt-4 text-2xl text-foreground`}>Discovery needs the full toolkit</h2>
-        <p className="mx-auto mt-1.5 max-w-md text-sm text-muted">
+        <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
           Your career-ops home looks data-only or is on an older version. The free scanner ships with a complete checkout —
           update career-ops, or paste a job URL on the pipeline to evaluate it directly.
         </p>
@@ -397,7 +397,7 @@ function FailedCard({ msg, scannerMissing, onRetry }: { msg: string; scannerMiss
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 text-center">
       <AlertTriangle className="mx-auto size-6 text-amber-500" />
       <p className="mt-2 text-sm font-medium text-foreground">Couldn’t finish the search.</p>
-      <p className="mt-1 text-[13px] text-muted">{msg}</p>
+      <p className="mt-1 text-[13px] text-muted-foreground">{msg}</p>
       <button onClick={onRetry} className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-brand-soft px-3 py-1.5 text-sm font-medium text-brand">
         <RotateCcw className="size-4" /> Try again
       </button>
@@ -418,7 +418,7 @@ function BlockedCard({ portalEnabled }: { portalEnabled: boolean }) {
           <Sparkles className="size-6" />
         </div>
         <h2 className={`${instrumentSerif.className} mt-4 text-2xl text-foreground`}>AI search isn&apos;t available yet</h2>
-        <p className="mx-auto mt-1.5 max-w-md text-sm text-muted">
+        <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
           Munia doesn&apos;t have AI web search configured on this deployment yet. The free Scan (Greenhouse, Lever, Ashby, Workday, iCIMS) and your daily Discovery sources stay fully available.
         </p>
       </div>
@@ -430,7 +430,7 @@ function BlockedCard({ portalEnabled }: { portalEnabled: boolean }) {
         <Sparkles className="size-6" />
       </div>
       <h2 className={`${instrumentSerif.className} mt-4 text-2xl text-foreground`}>AI search needs a CLI</h2>
-      <p className="mx-auto mt-1.5 max-w-md text-sm text-muted">
+      <p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
         Connect Claude Code, Gemini, or any agent CLI — your key, your tokens, your machine. The free Scan stays available without one.
       </p>
       <Link href="/config" className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-sm font-semibold text-brand-foreground transition hover:brightness-110">

@@ -68,7 +68,7 @@ export function DiscoveryCard({ offer, inPipeline, evaluatedN }: { offer: Discov
         <Logo company={offer.company} />
         <a href={offer.url} target="_blank" rel="noopener noreferrer" className="block min-w-0 flex-1 max-sm:min-h-[44px]">
           <h3 className={`${instrumentSerif.className} truncate text-[17px] leading-tight text-foreground transition-colors group-hover:text-brand`}>{offer.title}</h3>
-          <p className="mt-0.5 truncate text-[13px] text-muted">
+          <p className="mt-0.5 truncate text-[13px] text-muted-foreground">
             {offer.company}
             {offer.location && <span className="text-faint"> · {offer.location}</span>}
           </p>
@@ -86,7 +86,7 @@ export function DiscoveryCard({ offer, inPipeline, evaluatedN }: { offer: Discov
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-        <span className="rounded border border-border px-1.5 py-0.5 font-medium text-muted">{ATS_LABEL[offer.ats as AtsSource] ?? offer.ats}</span>
+        <span className="rounded border border-border px-1.5 py-0.5 font-medium text-muted-foreground">{ATS_LABEL[offer.ats as AtsSource] ?? offer.ats}</span>
         {fresh && <span className="text-faint">{fresh}</span>}
         {unverified && (
           <span

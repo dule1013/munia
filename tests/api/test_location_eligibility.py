@@ -70,6 +70,39 @@ def test_us_only_is_ineligible():
     assert tier == "ineligible"
 
 
+def test_us_city_state_abbreviation_with_no_country_word_is_ineligible():
+    """The exact gap found reviewing real production results: a bare "City,
+    ST" location (common in US ATS postings) never spells out "United
+    States" at all, so COUNTRY_ALIASES alone missed it and let it fall
+    through to the "no signal" plausible default."""
+    tier, reason = classify("Chicago, IL")
+    assert tier == "ineligible"
+    assert "united states" in reason
+
+
+def test_us_city_full_state_name_with_no_country_word_is_ineligible():
+    tier, _ = classify("Salem, New Hampshire")
+    assert tier == "ineligible"
+
+
+def test_us_city_state_abbreviation_plus_explicit_country_is_still_ineligible():
+    tier, _ = classify("Cleveland, OH, United States")
+    assert tier == "ineligible"
+
+
+def test_a_two_letter_word_inside_description_prose_is_not_mistaken_for_a_state():
+    """_names_a_us_state is scoped to comma-separated segments of the
+    structured location field, not a bare substring search — "ok" appearing
+    as an ordinary word in the description must never be treated as Oklahoma."""
+    tier, _ = classify("Madrid, Spain", "The pace here is intense but the team culture is genuinely ok and supportive.")
+    assert tier == "eligible"  # Madrid still wins; "ok" in the description is not OK-the-state
+
+
+def test_multi_location_including_spain_alongside_a_us_state_is_still_eligible():
+    tier, _ = classify("Madrid, Spain or Austin, TX")
+    assert tier == "eligible"
+
+
 def test_uk_only_is_ineligible():
     tier, _ = classify("UK Only")
     assert tier == "ineligible"

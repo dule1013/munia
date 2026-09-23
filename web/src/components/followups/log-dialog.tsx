@@ -90,7 +90,7 @@ export function LogDialog({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="font-display text-lg">Log follow-up</h2>
-            <p className="mt-0.5 text-sm text-muted">
+            <p className="mt-0.5 text-sm text-muted-foreground">
               {entry.company} · {entry.role} <span className="text-faint">(#{entry.num})</span>
             </p>
           </div>
@@ -101,11 +101,11 @@ export function LogDialog({
 
         <form onSubmit={submit} className="mt-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <label className="block text-xs font-medium text-muted">
+            <label className="block text-xs font-medium text-muted-foreground">
               Date
               <input type="date" required value={date} max={localISODate()} onChange={(e) => setDate(e.target.value)} className={cn(inputCls, "mt-1")} />
             </label>
-            <label className="block text-xs font-medium text-muted">
+            <label className="block text-xs font-medium text-muted-foreground">
               Channel
               <select value={channel} onChange={(e) => setChannel(e.target.value as Channel)} className={cn(inputCls, "mt-1")}>
                 {CHANNELS.map((c) => (
@@ -116,7 +116,7 @@ export function LogDialog({
               </select>
             </label>
           </div>
-          <label className="block text-xs font-medium text-muted">
+          <label className="block text-xs font-medium text-muted-foreground">
             Contact <span className="font-normal text-faint">(optional)</span>
             <input
               value={contact}
@@ -135,7 +135,7 @@ export function LogDialog({
               </datalist>
             )}
           </label>
-          <label className="block text-xs font-medium text-muted">
+          <label className="block text-xs font-medium text-muted-foreground">
             Notes <span className="font-normal text-faint">(optional)</span>
             <textarea
               value={notes}
@@ -147,7 +147,7 @@ export function LogDialog({
           </label>
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
-            <button type="button" onClick={onClose} className="rounded-md px-3 py-2 text-sm text-muted transition hover:text-foreground">
+            <button type="button" onClick={onClose} className="rounded-md px-3 py-2 text-sm text-muted-foreground transition hover:text-foreground">
               Cancel
             </button>
             <button

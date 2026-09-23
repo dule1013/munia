@@ -95,12 +95,12 @@ export function ConfigForm() {
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
       <h1 className="font-display text-2xl tracking-tight text-landing">Config</h1>
-      <p className="mt-1 text-sm text-muted">
+      <p className="mt-1 text-sm text-muted-foreground">
         Run career-ops on your own AI, right on your computer. Your CV and data never leave your machine.
       </p>
 
       {/* Engine mode */}
-      <label className="mt-8 mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+      <label className="mt-8 mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         AI Engine
       </label>
       <div className="grid gap-2 sm:grid-cols-3">
@@ -132,16 +132,16 @@ export function ConfigForm() {
       <div className="mt-6">
         {mode === "cli" && (
           <div>
-            <p className="mb-1 text-sm text-muted">
+            <p className="mb-1 text-sm text-muted-foreground">
               career-ops uses an AI tool you already have — signed in, your own usage, nothing to paste.
             </p>
             <p className="mb-3 text-xs text-faint">Works with Claude Code, Codex, OpenCode and more — free ones work great.</p>
             {clis === null ? (
-              <div className="flex items-center gap-2 text-sm text-muted">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Checking what&apos;s on your computer…
               </div>
             ) : installed.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-surface/30 p-4 text-sm text-muted">
+              <div className="rounded-xl border border-dashed border-border bg-surface/30 p-4 text-sm text-muted-foreground">
                 No AI tool yet? Free options like <span className="text-foreground">OpenCode</span> with Qwen or GLM work great.{" "}
                 <a href="https://career-ops.org/docs/free-ai-engine" target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-brand hover:underline">
                   Get one free <ExternalLink className="size-3" />
@@ -180,7 +180,7 @@ export function ConfigForm() {
                         <span
                           className={cn(
                             "font-medium",
-                            selected ? "text-foreground" : c.installed ? "" : "text-muted",
+                            selected ? "text-foreground" : c.installed ? "" : "text-muted-foreground",
                           )}
                         >
                           {c.name}
@@ -205,12 +205,12 @@ export function ConfigForm() {
                   );
                 })}
                 {installed.length === 0 && (
-                  <p className="rounded-xl border border-dashed border-border bg-surface/30 p-4 text-xs text-muted">
+                  <p className="rounded-xl border border-dashed border-border bg-surface/30 p-4 text-xs text-muted-foreground">
                     No supported CLI found on your PATH. Install one (e.g. Claude Code, Gemini CLI, OpenCode) to get started.
                   </p>
                 )}
                 <p className="mt-2 text-[11px] leading-relaxed text-faint">
-                  Best on <span className="text-muted">Claude Code</span> (live progress, the agentic apply + AI search,
+                  Best on <span className="text-muted-foreground">Claude Code</span> (live progress, the agentic apply + AI search,
                   reliable evaluation persistence). Other CLIs work for the core flows with reduced features.
                 </p>
               </div>
@@ -221,7 +221,7 @@ export function ConfigForm() {
         {mode === "key" && (
           <div className="space-y-5">
             <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Provider
               </label>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -234,7 +234,7 @@ export function ConfigForm() {
                       "rounded-xl border px-4 py-2.5 text-left text-sm transition-colors",
                       provider === p.id
                         ? "border-brand/50 bg-brand-soft text-foreground"
-                        : "border-border bg-surface/50 text-muted hover:bg-surface-hover hover:text-foreground",
+                        : "border-border bg-surface/50 text-muted-foreground hover:bg-surface-hover hover:text-foreground",
                     )}
                   >
                     {p.label}
@@ -243,7 +243,7 @@ export function ConfigForm() {
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 Paste an AI key
               </label>
               <p className="mb-2 text-xs text-faint">Bring a key from OpenAI, Anthropic, and others.</p>
@@ -263,14 +263,14 @@ export function ConfigForm() {
         )}
 
         {mode === "manual" && (
-          <div className="rounded-xl border border-dashed border-border bg-surface/30 p-4 text-sm text-muted">
+          <div className="rounded-xl border border-dashed border-border bg-surface/30 p-4 text-sm text-muted-foreground">
             The easiest way in — no keys, nothing to set up. On the roadmap.
           </div>
         )}
       </div>
 
       {/* Appearance / privacy */}
-      <label className="mt-8 mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+      <label className="mt-8 mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         Appearance
       </label>
       <button
@@ -346,7 +346,7 @@ function ModeCard({
             : "border-border bg-surface/50 hover:bg-surface-hover",
       )}
     >
-      <Icon className={cn("size-4", active && !disabled ? "text-brand" : "text-muted")} />
+      <Icon className={cn("size-4", active && !disabled ? "text-brand" : "text-muted-foreground")} />
       <span className="text-sm font-medium text-foreground">{title}</span>
       <span className="text-xs text-faint">{hint}</span>
     </button>

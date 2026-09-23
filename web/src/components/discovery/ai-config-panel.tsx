@@ -67,11 +67,11 @@ export function AIConfigPanel() {
         <h3 className="font-medium">AI</h3>
         <Badge tone={status.configured ? "good" : "muted"}>{status.configured ? "Configured" : "Not configured"}</Badge>
       </div>
-      <p className="mt-1 text-sm text-muted">Used for AI Search and automated job matching. Your key is encrypted and never shared with other candidates.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Used for AI Search and automated job matching. Your key is encrypted and never shared with other candidates.</p>
 
       {status.configured && !editing ? (
         <div className="mt-3 space-y-2">
-          <p className="text-sm text-muted">
+          <p className="text-sm text-muted-foreground">
             Provider: <span className="text-foreground">Anthropic</span> · Model: <span className="text-foreground">{status.available_models.find((m) => m.id === status.model)?.label || status.model}</span>
           </p>
           <div className="flex gap-2">
@@ -87,7 +87,7 @@ export function AIConfigPanel() {
         <form onSubmit={save} className="mt-3 space-y-3">
           <div>
             <label className="text-xs text-faint">Provider</label>
-            <p className="mt-1 text-sm text-muted">Anthropic</p>
+            <p className="mt-1 text-sm text-muted-foreground">Anthropic</p>
           </div>
           <div>
             <label className="text-xs text-faint">Model</label>

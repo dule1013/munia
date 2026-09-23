@@ -18,7 +18,7 @@ function MetricRow({ metrics }: { metrics?: SourceMetrics }) {
     <div className="mt-1 flex gap-3 text-xs text-faint">
       {METRIC_ORDER.map((key) => (
         <span key={key}>
-          {METRIC_LABEL[key]} <span className="tabular-nums text-muted">{metrics[key]}</span>
+          {METRIC_LABEL[key]} <span className="tabular-nums text-muted-foreground">{metrics[key]}</span>
         </span>
       ))}
     </div>
@@ -69,7 +69,7 @@ export function SourcesOverview() {
             <Radar className="size-5 text-brand" />
             <h3 className="font-medium">{network.label}</h3>
           </div>
-          <p className="mt-1 text-sm text-muted">Full public-network scans across these ATS platforms — no company list needed.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Full public-network scans across these ATS platforms — no company list needed.</p>
           <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/40">
             {network.sources?.map((s) => <SourceRow key={s.id} source={s} />)}
           </ul>
@@ -82,7 +82,7 @@ export function SourcesOverview() {
             <Newspaper className="size-5 text-brand" />
             <h3 className="font-medium">{feeds.label}</h3>
           </div>
-          <p className="mt-1 text-sm text-muted">Low-cost, curated feeds. Kept small deliberately — see Discovery Sources for why.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Low-cost, curated feeds. Kept small deliberately — see Discovery Sources for why.</p>
           <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/40">
             {feeds.sources?.map((s) => <SourceRow key={s.id} source={s} />)}
           </ul>
@@ -95,7 +95,7 @@ export function SourcesOverview() {
             <Globe className="size-5 text-brand" />
             <h3 className="font-medium">{web.label}</h3>
           </div>
-          <p className="mt-1 text-sm text-muted">AI-assisted web search for roles the structured scanners can&apos;t reach directly. Runs less often — it costs tokens.</p>
+          <p className="mt-1 text-sm text-muted-foreground">AI-assisted web search for roles the structured scanners can&apos;t reach directly. Runs less often — it costs tokens.</p>
           <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/40">
             {web.sources?.map((s) => <SourceRow key={s.id} source={s} />)}
           </ul>

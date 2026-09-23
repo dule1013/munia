@@ -11,10 +11,10 @@ import type { AiTraceChunk } from "@/lib/explore-ai";
 // strip markdown, and re-split into clean SENTENCES — healing the fragments. Newest
 // emphasized; auto-scrolls; co-located effect CSS (Tailwind v4 HMR gotcha).
 const STYLE = `
-.co-reason__dot{width:.5rem;height:.5rem;border-radius:50%;background:hsl(26 80% 55%);box-shadow:0 0 0 0 hsl(26 80% 55% /.5);animation:co-reason-pulse 1.5s ease-out infinite}
+.co-reason__dot{width:.5rem;height:.5rem;border-radius:50%;background:hsl(217 80% 55%);box-shadow:0 0 0 0 hsl(217 80% 55% /.5);animation:co-reason-pulse 1.5s ease-out infinite}
 .co-reason__body{-webkit-mask-image:linear-gradient(180deg,transparent,#000 16%);mask-image:linear-gradient(180deg,transparent,#000 16%)}
 .co-reason__line{animation:co-reason-in .35s ease both}
-@keyframes co-reason-pulse{70%{box-shadow:0 0 0 .4rem hsl(26 80% 55% /0)}100%{box-shadow:0 0 0 0 hsl(26 80% 55% /0)}}
+@keyframes co-reason-pulse{70%{box-shadow:0 0 0 .4rem hsl(217 80% 55% /0)}100%{box-shadow:0 0 0 0 hsl(217 80% 55% /0)}}
 @keyframes co-reason-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.co-reason__dot,.co-reason__line{animation:none}}
 `;
@@ -67,7 +67,7 @@ export function AiHuntTrace({ trace }: { trace: AiTraceChunk[] }) {
         {sentences.map((s, i) => (
           <p
             key={`${sentences.length}-${i}`}
-            className={cn("co-reason__line text-[13.5px] leading-relaxed", i === sentences.length - 1 ? "text-foreground" : "text-muted")}
+            className={cn("co-reason__line text-[13.5px] leading-relaxed", i === sentences.length - 1 ? "text-foreground" : "text-muted-foreground")}
           >
             {renderInline(s)}
           </p>

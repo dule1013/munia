@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings
 from app.modules.ai_config import service as ai_config_service
 from app.modules.ai_config.anthropic_client import ANTHROPIC_API_URL, ANTHROPIC_VERSION, call_anthropic
+from app.modules.candidates.location_eligibility import build_location_config_from_profile
 from app.modules.candidates.models import User
 from app.modules.candidates.service import get_profile
 from app.modules.discovery.sources import METHOD_WEB_SEARCH
@@ -31,7 +32,7 @@ from app.modules.pipeline.service import add_candidate_job
 
 # Re-exported for backwards compatibility — tests/callers that imported
 # these constants from this module still work unchanged.
-__all__ = ["ANTHROPIC_API_URL", "ANTHROPIC_VERSION", "AISearchNotConfigured", "AISearchRateLimited", "build_daily_discovery_query", "build_prompt", "extract_job_candidates", "run_ai_search"]
+__all__ = ["ANTHROPIC_API_URL", "ANTHROPIC_VERSION", "AISearchNotConfigured", "AISearchRateLimited", "build_candidate_context", "build_daily_discovery_query", "build_prompt", "extract_job_candidates", "run_ai_search"]
 # Matches app.modules.discovery.sources.WEAK_SOURCES's "web-discovery" entry
 # — an AI-search hit is a weak identity signal (like LinkedIn), never
 # allowed to overwrite a strong ATS-sourced Job's canonical fields.
@@ -67,10 +68,43 @@ def build_daily_discovery_query(profile: dict) -> str:
     return f"Currently open job postings for: {roles_str}{location_str}. Prioritize roles posted in the last few days."
 
 
-def build_prompt(query: str, target_roles: list[str] | None) -> str:
+def build_candidate_context(profile: dict) -> str:
+    """The candidate-context sentence every interactive AI Search prompt gets
+    automatically, regardless of what the user typed (Explore AI Search
+    product-quality fix) — "the normal user should not need to engineer a
+    prompt" containing their own location/eligibility every time.
+
+    Reuses build_location_config_from_profile (the same robust,
+    both-profile-shapes-aware resolution build_daily_discovery_query and the
+    location eligibility classifier already rely on) rather than
+    hosted_triage._profile_summary's narrower `candidate.location` lookup,
+    which misses the richer `location: {city, country, authorized_in}` block
+    a fleshed-out profile (e.g. Dusan's) actually uses.
+    """
+    profile = profile or {}
+    location_block = profile.get("location") or {}
+    location_desc = location_block.get("city") or location_block.get("country") or (profile.get("candidate") or {}).get("location") or ""
+    if not location_desc:
+        return ""
+    config = build_location_config_from_profile(profile)
+    regions = sorted(r for r in config.eligible_regions if r not in ("worldwide", "global"))
+    region_str = f", and also open to remote roles scoped to {', '.join(regions)}" if regions else ""
+    return f"based in {location_desc}{region_str}"
+
+
+def build_prompt(query: str, target_roles: list[str] | None, candidate_context: str = "") -> str:
     focus = f" The candidate is specifically targeting: {', '.join(target_roles)}." if target_roles else ""
+    context = (
+        f" The candidate is {candidate_context}. Only return postings realistically open to someone in that "
+        "situation — the candidate's own city/country, a remote scope that explicitly includes their region, "
+        "or a worldwide/global remote scope. Do not return postings scoped to a single other country/region "
+        "the candidate is not based in or eligible under, even if the query itself doesn't repeat that "
+        "constraint."
+        if candidate_context
+        else ""
+    )
     return (
-        f'Search the web for real, currently open job postings matching: "{query}".{focus}\n\n'
+        f'Search the web for real, currently open job postings matching: "{query}".{focus}{context}\n\n'
         "Use web search to find ACTUAL live job postings with real URLs — never invent a company, title, or URL; "
         "if you are not confident a result is a real posting, leave it out.\n"
         f"Return AT MOST {MAX_RESULTS} results as a JSON array and nothing else after it, in exactly this shape:\n"
@@ -103,7 +137,9 @@ async def run_ai_search(db: AsyncSession, settings: Settings, user: User, query:
         raise AISearchRateLimited(remaining)
 
     profile = await get_profile(db, user.id)
-    target_roles = ((profile.profile or {}).get("target_roles") or {}).get("primary") if profile else None
+    profile_dict = profile.profile if profile else {}
+    target_roles = ((profile_dict.get("target_roles") or {}).get("primary")) or None
+    candidate_context = build_candidate_context(profile_dict)
 
     # Marked before the call, not after: a candidate whose request hangs or
     # errors shouldn't be able to fire off a second one immediately, since
@@ -114,7 +150,7 @@ async def run_ai_search(db: AsyncSession, settings: Settings, user: User, query:
     result = await call_anthropic(
         settings,
         config,
-        messages=[{"role": "user", "content": build_prompt(query, target_roles)}],
+        messages=[{"role": "user", "content": build_prompt(query, target_roles, candidate_context)}],
         max_tokens=2000,
         tools=[{"type": "web_search_20250305", "name": "web_search", "max_uses": 5}],
         timeout=60,

@@ -44,6 +44,10 @@ COUNTRY_ALIASES: dict[str, str] = {
     "germany": "germany", "france": "france", "italy": "italy", "portugal": "portugal",
     "spain": "spain", "canada": "canada", "ireland": "ireland", "netherlands": "netherlands",
     "poland": "poland", "serbia": "serbia",
+    # Extended after auditing real production location strings (job-enrichment
+    # audit, #3811 follow-up) — bare country names that were falling through
+    "sweden": "sweden", "switzerland": "switzerland", "hungary": "hungary",
+    "greece": "greece", "romania": "romania", "india": "india", "estonia": "estonia",
 }
 
 # US ATS postings very commonly give a "City, ST" / "City, State" location

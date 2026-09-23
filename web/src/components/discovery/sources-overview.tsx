@@ -59,48 +59,58 @@ export function SourcesOverview() {
   return (
     <div className="space-y-6">
       <MorningStatusPanel />
-      <LinkedInPanel />
-      <WatchlistPanel />
-      <AIConfigPanel />
 
-      {network && (
-        <Card>
-          <div className="flex items-center gap-2">
-            <Radar className="size-5 text-brand" />
-            <h3 className="font-medium">{network.label}</h3>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">Full public-network scans across these ATS platforms — no company list needed.</p>
-          <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/40">
-            {network.sources?.map((s) => <SourceRow key={s.id} source={s} />)}
-          </ul>
-        </Card>
-      )}
+      {/* Integrations you actively manage — side by side, not a vertical stack
+         of huge full-width cards, so the config/status you care about most is
+         scannable at a glance on a real desktop viewport. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <LinkedInPanel />
+        <WatchlistPanel />
+        <AIConfigPanel />
+      </div>
 
-      {feeds && (
-        <Card>
-          <div className="flex items-center gap-2">
-            <Newspaper className="size-5 text-brand" />
-            <h3 className="font-medium">{feeds.label}</h3>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">Low-cost, curated feeds. Kept small deliberately — see Discovery Sources for why.</p>
-          <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/40">
-            {feeds.sources?.map((s) => <SourceRow key={s.id} source={s} />)}
-          </ul>
-        </Card>
-      )}
+      {/* The broader discovery network is secondary/reference information —
+         a responsive grid, de-emphasized relative to the panels above. */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+        {network && (
+          <Card>
+            <div className="flex items-center gap-2">
+              <Radar className="size-5 text-brand" />
+              <h3 className="font-medium">{network.label}</h3>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">Full public-network scans across these ATS platforms — no company list needed.</p>
+            <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/40">
+              {network.sources?.map((s) => <SourceRow key={s.id} source={s} />)}
+            </ul>
+          </Card>
+        )}
 
-      {web && (
-        <Card>
-          <div className="flex items-center gap-2">
-            <Globe className="size-5 text-brand" />
-            <h3 className="font-medium">{web.label}</h3>
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">AI-assisted web search for roles the structured scanners can&apos;t reach directly. Runs less often — it costs tokens.</p>
-          <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/40">
-            {web.sources?.map((s) => <SourceRow key={s.id} source={s} />)}
-          </ul>
-        </Card>
-      )}
+        {feeds && (
+          <Card>
+            <div className="flex items-center gap-2">
+              <Newspaper className="size-5 text-brand" />
+              <h3 className="font-medium">{feeds.label}</h3>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">Low-cost, curated feeds. Kept small deliberately — see Discovery Sources for why.</p>
+            <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/40">
+              {feeds.sources?.map((s) => <SourceRow key={s.id} source={s} />)}
+            </ul>
+          </Card>
+        )}
+
+        {web && (
+          <Card>
+            <div className="flex items-center gap-2">
+              <Globe className="size-5 text-brand" />
+              <h3 className="font-medium">{web.label}</h3>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">AI-assisted web search for roles the structured scanners can&apos;t reach directly. Runs less often — it costs tokens.</p>
+            <ul className="mt-4 divide-y divide-border overflow-hidden rounded-2xl border border-border bg-surface/40">
+              {web.sources?.map((s) => <SourceRow key={s.id} source={s} />)}
+            </ul>
+          </Card>
+        )}
+      </div>
 
       {watchlist?.summary && (
         <p className="text-xs text-faint">

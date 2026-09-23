@@ -132,3 +132,71 @@ async def test_prompt_never_leaks_a_key_and_extraction_ignores_narration(monkeyp
     candidates = ai_search.extract_job_candidates(text)
     assert len(candidates) == 1
     assert candidates[0]["company"] == "Acme"
+
+
+# ── Candidate context is automatic, not something the user has to type ──────
+# Explore AI Search product-quality fix (#3811 P0-B): a plain, unqualified
+# query like "Director of Engineering roles" must still get anchored to the
+# candidate's own location/eligible regions server-side.
+
+def test_build_candidate_context_uses_the_richer_location_block_when_present():
+    """This is exactly Dusan's real profile shape — build_daily_discovery_query
+    and the location eligibility classifier already handle it; the interactive
+    AI Search prompt must too, not fall back to the narrower `candidate.location`
+    lookup hosted_triage._profile_summary uses."""
+    profile = {"location": {"city": "Madrid", "country": "Spain", "authorized_in": ["Spain", "European Union", "European Economic Area", "Serbia"]}}
+    context = ai_search.build_candidate_context(profile)
+    assert "Madrid" in context
+    assert "serbia" in context.lower() or "european union" in context.lower()
+
+
+def test_build_candidate_context_falls_back_to_simple_profile_shape():
+    profile = {"candidate": {"location": "Lisbon, Portugal"}}
+    context = ai_search.build_candidate_context(profile)
+    assert "Lisbon, Portugal" in context
+
+
+def test_build_candidate_context_empty_when_no_location_anywhere():
+    assert ai_search.build_candidate_context({}) == ""
+    assert ai_search.build_candidate_context({"location": {}}) == ""
+
+
+def test_build_prompt_includes_candidate_context_when_present():
+    prompt = ai_search.build_prompt("Director of Engineering roles", None, "based in Madrid, Spain")
+    assert "based in Madrid, Spain" in prompt
+    assert "Do not return postings scoped to a single other country" in prompt
+
+
+def test_build_prompt_omits_context_sentence_when_none_available():
+    prompt = ai_search.build_prompt("Director of Engineering roles", None, "")
+    assert "The candidate is" not in prompt
+
+
+async def test_ai_search_route_includes_location_context_in_the_actual_anthropic_call(api, monkeypatch):
+    """End-to-end: a candidate with a configured profile location gets that
+    location baked into the real outbound prompt automatically, even though
+    the query itself says nothing about location."""
+    client, sessions, settings = api
+    settings.integration_encryption_key = generate_key()
+    user = await seed_user(sessions, "clerk-a")
+    async with sessions() as db:
+        from app.modules.candidates.models import CandidateProfile
+
+        db.add(CandidateProfile(user_id=user.id, profile={"location": {"city": "Madrid", "country": "Spain"}}, portals_yaml=""))
+        await db.commit()
+    await client.put("/api/v1/ai-config", headers=headers("clerk-a"), json={"model": "claude-haiku-4-5-20251001", "api_key": "sk-ant-fake"})
+
+    captured_body = {}
+    original_post = httpx.AsyncClient.post
+
+    async def capturing_post(self, url, *args, **kwargs):
+        if str(url) == ai_search.ANTHROPIC_API_URL:
+            captured_body.update(kwargs.get("json") or {})
+            return httpx.Response(200, json={"content": [{"type": "text", "text": VALID_RESULT_TEXT}]}, request=httpx.Request("POST", url))
+        return await original_post(self, url, *args, **kwargs)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", capturing_post)
+    resp = await client.post("/api/v1/discovery/ai-search", headers=headers("clerk-a"), json={"query": "Director of Engineering roles"})
+    assert resp.status_code == 200
+    sent_prompt = captured_body["messages"][0]["content"]
+    assert "Madrid" in sent_prompt

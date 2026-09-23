@@ -33,20 +33,20 @@ export function TodayView() {
 
   if (items === null) {
     return (
-      <div className="mx-auto w-full max-w-3xl px-6 py-16 text-center">
+      <div className="mx-auto w-full max-w-[120rem] px-6 py-16 text-center">
         <Loader2 className="mx-auto size-6 animate-spin text-faint" />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-6 py-8">
+    <div className="mx-auto w-full max-w-[120rem] px-6 py-8">
       <div className="flex items-center gap-3">
         <Sparkles className="size-6 text-brand" />
         <h1 className={`${instrumentSerif.className} text-3xl text-landing`}>Today</h1>
       </div>
       {summary && (
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
           {summary.new > 0 && (
             <>
               <span className="font-semibold text-foreground">{summary.new}</span> new strong match{summary.new === 1 ? "" : "es"} ·{" "}
@@ -57,17 +57,17 @@ export function TodayView() {
       )}
 
       {items.length === 0 ? (
-        <Card className="mt-6">
+        <Card className="mt-6 max-w-2xl">
           <p className="text-sm text-muted-foreground">No strong matches yet. Munia keeps searching every morning — check{" "}
             <Link href="/pipeline" className="font-medium underline underline-offset-2">Pipeline → Inbox</Link> for everything plausibly worth a look in the meantime.
           </p>
         </Card>
       ) : (
-        <ul className="mt-6 space-y-3">
+        <ul className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           {items.map((item) => (
             <li key={item.id}>
-              <Link href={`/pipeline/${item.id}`} className="block">
-                <Card className="transition-colors hover:bg-surface-hover">
+              <Link href={`/pipeline/${item.id}`} className="block h-full">
+                <Card className="flex h-full flex-col transition-colors hover:bg-surface-hover">
                   <div className="flex items-start gap-3">
                     <CompanyLogo name={item.job.company} size={36} />
                     <div className="min-w-0 flex-1">
@@ -80,12 +80,12 @@ export function TodayView() {
                         {item.job.location ? ` · ${item.job.location}` : ""}
                         {daysAgo(item.job.posted_at) ? ` · ${daysAgo(item.job.posted_at)}` : ""}
                       </p>
-                      {item.ai_fit_reason && <p className="mt-1 text-sm text-foreground">{item.ai_fit_reason}</p>}
-                      <div className="mt-2">
-                        <JobProvenance jobId={item.job_id} />
-                      </div>
                     </div>
                     <ArrowRight className="mt-1 size-4 shrink-0 text-faint" />
+                  </div>
+                  {item.ai_fit_reason && <p className="mt-2 line-clamp-3 text-sm text-foreground">{item.ai_fit_reason}</p>}
+                  <div className="mt-auto pt-2">
+                    <JobProvenance jobId={item.job_id} />
                   </div>
                 </Card>
               </Link>

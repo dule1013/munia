@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export default function DiscoveryPage() {
   const portalEnabled = portalMode();
   return (
-    <div className="mx-auto w-full max-w-[80rem] px-6 py-8 lg:px-8">
+    <div className="mx-auto w-full max-w-[120rem] px-6 py-8 lg:px-8">
       <div className="flex items-center gap-3">
         <Radar className="size-6 text-brand" />
         <h1 className="font-display text-2xl tracking-tight text-landing">Discovery</h1>

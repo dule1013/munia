@@ -11,6 +11,14 @@ import { cn } from "@/lib/cn";
 
 export type RowScore = { score: number | null; tone: "good" | "warn" | "bad" | "muted"; jobId: string; running: boolean };
 
+// "plausible" means location is genuinely unconfirmed (broad region term, or
+// no location signal at all) — never render it as if it were as certain as
+// "eligible" (candidate's own location/region explicitly named). "ineligible"
+// is filtered out of the actionable Inbox upstream, but kept here in case a
+// caller ever surfaces the full, unfiltered set.
+const ELIGIBILITY_TONE: Record<string, "good" | "warn" | "bad" | "muted"> = { eligible: "good", plausible: "muted", ineligible: "bad" };
+const ELIGIBILITY_LABEL: Record<string, string> = { eligible: "confirmed location", plausible: "location unconfirmed", ineligible: "location incompatible" };
+
 function agoLabel(age: number | null): string | null {
   if (age == null) return null;
   if (age <= 0) return "today";
@@ -78,7 +86,7 @@ export function TriageRow({
           {job.location && <span>{job.location}</span>}
           {(job.scanSource || source) && <span className="rounded bg-surface-hover px-1 py-px font-medium text-muted-foreground">{job.scanSource || (source ? ATS_LABEL[source] : "")}</span>}
           {ago && <span>{ago}</span>}
-          {job.eligibility && <span className="font-medium text-brand-text">{job.eligibility}</span>}
+          {job.eligibility && <Badge tone={ELIGIBILITY_TONE[job.eligibility] ?? "muted"}>{ELIGIBILITY_LABEL[job.eligibility] ?? job.eligibility}</Badge>}
           {!evaluated && <span className="italic text-muted-foreground">not scored</span>}
         </p>
         {job.triageReason && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">{job.triageReason}</p>}

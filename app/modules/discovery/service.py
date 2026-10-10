@@ -12,7 +12,7 @@ from app.modules.automation.runner import prepare_workspace, run_in_workspace
 from app.modules.discovery.models import DiscoveryRun
 from app.modules.discovery.sources import REVERSE_SCAN_SOURCES
 
-MAX_REQUEST_COMPANIES_PER_ATS = 50
+MAX_REQUEST_COMPANIES_PER_ATS = 500
 # The backend capability set for the full-network reverse-ATS scan
 # (scan-ats-full.mjs). Sourced from discovery.sources' verified
 # REVERSE_SCAN_SOURCES (Checkpoint B/D) rather than a locally hand-maintained
@@ -62,7 +62,7 @@ async def execute_run(run_id: uuid.UUID, settings: Settings, session_factory: as
         result = None
         error = None
         try:
-            completed = await run_in_workspace(workspace, settings, "scan-ats-full.mjs", "--dry-run", "--json", "--since", str(since_days), "--ats", ",".join(ats), "--limit", str(limit), timeout=RUN_TIMEOUT_SECONDS)
+            completed = await run_in_workspace(workspace, settings, "scan-ats-full.mjs", "--dry-run", "--json", "--since", str(since_days), "--ats", ",".join(ats), "--limit", str(limit), "--shuffle", timeout=RUN_TIMEOUT_SECONDS)
             if completed.returncode:
                 error = completed.stderr[-2000:] or "discovery failed"
             else:

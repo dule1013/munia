@@ -8,7 +8,7 @@ from app.modules.automation import batch as automation_batch
 from app.modules.automation.runner import CommandResult
 from app.modules.candidates.models import CandidateProfile, User
 from app.modules.discovery import ai_search
-from app.modules.discovery.ats_rotation import get_or_create_cursor
+from app.modules.discovery.ats_rotation import DEFAULT_BATCH_SIZES, get_or_create_cursor
 from app.modules.discovery.models import MorningRun
 from app.modules.jobs.models import Job
 from app.modules.jobs.schemas import JobIngest
@@ -175,7 +175,8 @@ async def test_all_five_ats_sources_attempted_in_one_morning_run(api, monkeypatc
     async with sessions() as db:
         for ats in ("greenhouse", "lever", "ashby", "workday", "icims"):
             cursor = await get_or_create_cursor(db, ats)
-            assert cursor.next_offset > 0  # each cursor actually advanced
+            # each cursor advanced by its batch (mod the fake datasetSize=1000)
+            assert cursor.next_offset == DEFAULT_BATCH_SIZES[ats] % 1000
 
 
 async def test_location_classifier_participates_and_ineligible_never_reaches_assessment(api, monkeypatch):
@@ -287,7 +288,7 @@ async def test_disable_ai_flag_skips_every_ai_step_but_still_runs_free_discovery
     async with sessions() as db:
         for ats in ("greenhouse", "lever", "ashby", "workday", "icims"):
             cursor = await get_or_create_cursor(db, ats)
-            assert cursor.next_offset > 0
+            assert cursor.next_offset == DEFAULT_BATCH_SIZES[ats] % 1000
 
 
 async def test_production_mode_routing_is_unaffected_by_automation_changes(api):

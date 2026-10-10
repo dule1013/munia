@@ -21,7 +21,10 @@ export async function POST(req: Request) {
       controller.close();
     } }), { headers: { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "no-cache, no-transform" } });
   }
-  const request = { since_days: body.sinceDays || body.since || 7, ats: body.ats, limit_per_ats: body.limitPerAts || body.limit || 150 };
+  // Share the local path's parser so the hosted request is clamped/cleaned the
+  // same way (limitPerAts bounds, sinceDays window, ATS allowlist).
+  const hosted = parseExplorePatch(body, DEFAULT_FILTERS);
+  const request = { since_days: hosted.sinceDays, ats: hosted.ats, limit_per_ats: hosted.limitPerAts };
   try {
     const run = await serverApi<{ id: string }>("/discovery/runs", { method: "POST", body: JSON.stringify(request) });
     return Response.json({ runId: run.id }, { status: 202 });

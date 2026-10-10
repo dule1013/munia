@@ -37,7 +37,7 @@ router = APIRouter(prefix="/discovery", tags=["discovery"])
 class DiscoveryRequest(BaseModel):
     since_days: int = Field(default=7, ge=1, le=30)
     ats: list[str] = Field(default_factory=lambda: sorted(SUPPORTED_ATS))
-    limit_per_ats: int = Field(default=150, ge=1, le=1500)
+    limit_per_ats: int = Field(default=300, ge=1, le=500)
 
 
 class DiscoveryRunOut(BaseModel):

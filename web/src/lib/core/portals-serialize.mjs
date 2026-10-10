@@ -34,6 +34,10 @@ export function serializePortals(f) {
     out += "title_filter:\n";
     out += block("positive", f.positive);
     out += block("negative", f.negative);
+  } else {
+    // Always emit a real YAML document — a comment-only file makes the
+    // scanner's YAML loader fail with "expected a document".
+    out += "title_filter: {}\n";
   }
   if (f.blockHard.length || f.allow.length || f.block.length || f.alwaysAllow.length) {
     out += "location_filter:\n";

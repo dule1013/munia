@@ -21,14 +21,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.discovery.models import AtsScanCursor
 from app.modules.discovery.sources import REVERSE_SCAN_SOURCES
 
-# Proposed daily batch sizes (Phase 5 follow-up report) — Greenhouse/Lever
-# start large since their datasets are the best-measured and cheapest per
-# company; iCIMS/Ashby smaller given their larger/less-measured runtimes;
-# Workday deliberately conservative until a real production/staging runtime
-# is measured (scan-ats-full.mjs timed out on Workday in this sandbox during
-# Checkpoint D — unrelated to this change, but means its batch size here is
-# a starting guess, not a measurement).
-DEFAULT_BATCH_SIZES: dict[str, int] = {"greenhouse": 1500, "lever": 1500, "ashby": 500, "workday": 100, "icims": 700}
+# Daily batch sizes sized against measured scanner throughput (~13
+# companies/s): at these sizes a morning run finishes Greenhouse and Ashby in
+# ~3 days of coverage, Lever in 2, and iCIMS in ~7 — roughly ~10 min of
+# scanning per morning run excluding Workday, which stays deliberately
+# conservative until a real production/staging runtime is measured
+# (scan-ats-full.mjs timed out on Workday in this sandbox during Checkpoint D).
+DEFAULT_BATCH_SIZES: dict[str, int] = {"greenhouse": 3000, "lever": 2200, "ashby": 1100, "workday": 100, "icims": 1500}
 
 
 async def get_or_create_cursor(db: AsyncSession, source: str) -> AtsScanCursor:

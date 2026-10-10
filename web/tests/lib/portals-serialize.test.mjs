@@ -37,6 +37,14 @@ test("all location tiers round-trip through YAML", () => {
   assert.deepEqual(lf.block, ["india"]);
 });
 
+test("fully empty filters still emit a parseable document with title_filter", () => {
+  // A comment-only file makes the scanner's YAML loader die with "expected a
+  // document" — serializePortals must always produce a real document.
+  const doc = yaml.load(serializePortals(empty));
+  assert.ok(doc && typeof doc === "object");
+  assert.ok("title_filter" in doc);
+});
+
 test("no location tiers → no location_filter section", () => {
   const doc = yaml.load(serializePortals({ ...empty, positive: ["engineer"] }));
   assert.equal(doc.location_filter, undefined);

@@ -73,11 +73,13 @@ async def test_manual_scan_excludes_workday_even_when_explicitly_requested(api, 
     client, sessions, settings = api
     await seed_user(sessions)
     captured_ats = {}
+    captured_args = []
 
     async def fake_prepare(db, user_id, settings):
         return tmp_path
 
     async def fake_run(ws, settings, script, *arguments, timeout=900):
+        captured_args.extend(arguments)
         if "--ats" in arguments:
             captured_ats["value"] = arguments[arguments.index("--ats") + 1]
         return CommandResult(0, SUCCESS_PAYLOAD, "")
@@ -93,6 +95,9 @@ async def test_manual_scan_excludes_workday_even_when_explicitly_requested(api, 
     assert "workday" not in captured_ats["value"].split(",")
     assert "greenhouse" in captured_ats["value"].split(",")
     assert "ashby" in captured_ats["value"].split(",")
+    # Manual scans must randomize their slice — otherwise every Discover
+    # re-scans the same alphabetical-first companies.
+    assert "--shuffle" in captured_args
 
 
 async def test_manual_scan_requesting_only_workday_is_rejected(api):

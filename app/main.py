@@ -1,10 +1,12 @@
+import asyncio
 import logging
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.modules.automation.scheduler import morning_sweep_loop
 from app.modules.discovery.service import fail_orphaned_runs
 from app.modules.ai_config.routes import router as ai_config_router
 from app.modules.artifacts.routes import router as artifacts_router
@@ -28,7 +30,17 @@ async def lifespan(_: FastAPI):
             logger.warning("marked %d orphaned discovery runs as failed", orphaned)
     except Exception:
         logger.exception("could not reap orphaned discovery runs")
+    sweep_task = None
+    if get_settings().morning_sweep_schedule_utc:
+        sweep_task = asyncio.create_task(morning_sweep_loop(settings))
+        logger.info("morning sweep scheduled at %s UTC (ai=%s)", settings.morning_sweep_schedule_utc, settings.morning_sweep_ai)
+    else:
+        logger.info("morning sweep scheduler disabled (MORNING_SWEEP_SCHEDULE_UTC not set)")
     yield
+    if sweep_task is not None:
+        sweep_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await sweep_task
 
 
 app = FastAPI(title="Career Ops Portal API", version="0.1.0", lifespan=lifespan)

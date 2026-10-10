@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { careerOpsRoot, rootScript } from "@/lib/career-ops";
 import { writeTempPortals, cleanupTempPortals } from "./portals";
-import { ATS_SOURCES, type DiscoveredOffer, type ExploreFilters, type ScanEvent } from "@/lib/explore";
+import { ATS_SOURCES, DEFAULT_FILTERS, type DiscoveredOffer, type ExploreFilters, type ScanEvent } from "@/lib/explore";
 
 export type { DiscoveredOffer, ScanEvent, AtsSource } from "@/lib/explore";
 export { ATS_SOURCES } from "@/lib/explore";
@@ -82,6 +82,11 @@ type ScanJson = {
 
 export function runDiscovery(filters: ExploreFilters, onEvent: (e: ScanEvent) => void): Promise<DiscoveredOffer[]> {
   return new Promise((resolve) => {
+    if (filters.positive.length === 0) {
+      onEvent({ kind: "error", message: "Add at least one role keyword before discovering — an empty role list would match every posting on the network." });
+      resolve([]);
+      return;
+    }
     const tempPortals = writeTempPortals(filters);
     const ats = (filters.ats.length ? filters.ats : [...ATS_SOURCES]).filter((a) => (ATS_SOURCES as readonly string[]).includes(a));
     const useJson = scannerSupportsJson();
@@ -93,7 +98,8 @@ export function runDiscovery(filters: ExploreFilters, onEvent: (e: ScanEvent) =>
       "--ats",
       ats.join(","),
       "--limit",
-      String(Math.max(1, filters.limitPerAts || 150)),
+      String(Math.max(1, filters.limitPerAts || DEFAULT_FILTERS.limitPerAts)),
+      "--shuffle",
     ];
     if (useJson) args.push("--json");
 
@@ -118,7 +124,7 @@ export function runDiscovery(filters: ExploreFilters, onEvent: (e: ScanEvent) =>
       } catch {
         /* ignore */
       }
-    }, 230_000);
+    }, 280_000);
 
     // Live progress (atsStart / progress / atsDone) — in --json mode these human
     // lines arrive on STDERR; in legacy mode on STDOUT (handled inside handleLine).

@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     # Where to send the browser back to after the OAuth callback finishes.
     web_app_url: str = "http://localhost:3000"
 
+    # Nightly morning sweep, run inside this api process (no separate service
+    # needed — the api owns the /data volume the workspace root lives on).
+    # "HH:MM" 24h UTC; empty disables the scheduler entirely.
+    morning_sweep_schedule_utc: str = ""
+    # False → morning_run(disable_ai=True): the sweep is zero-token by default.
+    morning_sweep_ai: bool = False
+
     @field_validator("database_url")
     @classmethod
     def async_database_url(cls, value: str) -> str:

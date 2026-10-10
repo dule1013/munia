@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X, Ban, Clock, MapPin, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { ATS_LABEL, ATS_SOURCES, cleanChips, type AtsSource, type ExploreFilters } from "@/lib/explore";
+import { ATS_LABEL, ATS_SOURCES, LIMIT_PER_ATS_MAX, LIMIT_PER_ATS_MIN, cleanChips, type AtsSource, type ExploreFilters } from "@/lib/explore";
 
 const RECENCY = [
   { label: "24h", days: 1 },
@@ -216,8 +216,8 @@ export function FilterBuilder({
             <Label hint={`${filters.limitPerAts} companies / source`}>Scan depth</Label>
             <input
               type="range"
-              min={50}
-              max={500}
+              min={LIMIT_PER_ATS_MIN}
+              max={LIMIT_PER_ATS_MAX}
               step={50}
               value={filters.limitPerAts}
               onChange={(e) => set({ limitPerAts: Number(e.target.value) })}

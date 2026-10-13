@@ -8,11 +8,13 @@ import type { DiscoveredOffer } from "./explore";
 import { pendingOpenerLen } from "./stream-parse.mjs";
 import { normalizeUrl } from "./core/url-key.mjs";
 
-const OPEN = "<<offer:";
+const OPEN_OFFER = "<<offer:";
+const OPEN_ERROR = "<<error:";
 const CLOSE = ">>";
 
 export type AiTraceChunk =
   | { kind: "offer"; offer: DiscoveredOffer }
+  | { kind: "error"; message: string; hint?: string }
   | { kind: "narration"; text: string }
   | { kind: "malformed"; raw: string };
 
@@ -63,14 +65,19 @@ export function makeAiStreamParser(opts?: { knownUrls?: Set<string> }) {
       buf += delta;
       const out: AiTraceChunk[] = [];
       for (;;) {
-        const open = buf.indexOf(OPEN);
+        // Whichever envelope opener arrives first wins — offer and error
+        // envelopes share the same buffering/close logic.
+        const openOffer = buf.indexOf(OPEN_OFFER);
+        const openError = buf.indexOf(OPEN_ERROR);
+        const open = openOffer === -1 ? openError : openError === -1 ? openOffer : Math.min(openOffer, openError);
         if (open === -1) {
           // No opener in view. Flush as narration — but hold back the longest
-          // trailing run that could be the start of a split opener ("<<offe…"),
-          // so an offer whose marker straddles a chunk boundary is never dropped
-          // as garbage (#2290). A fixed-length tail check missed the shorter
-          // partial openers ("<<", "<<off") preceded by other text.
-          const hold = pendingOpenerLen(buf, OPEN);
+          // trailing run that could be the start of EITHER split opener
+          // ("<<offe…", "<<err…"), so an envelope whose marker straddles a
+          // chunk boundary is never dropped as garbage (#2290). A
+          // fixed-length tail check missed the shorter partial openers
+          // ("<<", "<<off") preceded by other text.
+          const hold = Math.max(pendingOpenerLen(buf, OPEN_OFFER), pendingOpenerLen(buf, OPEN_ERROR));
           const text = hold ? buf.slice(0, buf.length - hold) : buf;
           if (text.trim()) out.push({ kind: "narration", text });
           buf = hold ? buf.slice(buf.length - hold) : "";
@@ -78,14 +85,30 @@ export function makeAiStreamParser(opts?: { knownUrls?: Set<string> }) {
         }
         const before = buf.slice(0, open);
         if (before.trim()) out.push({ kind: "narration", text: before });
-        const close = buf.indexOf(CLOSE, open + OPEN.length);
+        const isError = buf.startsWith(OPEN_ERROR, open);
+        const opener = isError ? OPEN_ERROR : OPEN_OFFER;
+        const close = buf.indexOf(CLOSE, open + opener.length);
         if (close === -1) {
           // Envelope still streaming — keep from the opener onward and wait.
           buf = buf.slice(open);
           break;
         }
-        const json = buf.slice(open + OPEN.length, close);
+        const json = buf.slice(open + opener.length, close);
         buf = buf.slice(close + CLOSE.length);
+        if (isError) {
+          let err: { message?: unknown; hint?: unknown } | null = null;
+          try {
+            err = JSON.parse(json) as { message?: unknown; hint?: unknown };
+          } catch {
+            err = null;
+          }
+          if (!err || typeof err.message !== "string" || !err.message) {
+            out.push({ kind: "malformed", raw: json.slice(0, 120) });
+          } else {
+            out.push({ kind: "error", message: err.message, hint: typeof err.hint === "string" && err.hint ? err.hint : undefined });
+          }
+          continue;
+        }
         let offer: DiscoveredOffer | null = null;
         try {
           offer = toOffer(JSON.parse(json));

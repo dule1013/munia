@@ -1,4 +1,5 @@
 import { spawnHeadlessCli } from "@/lib/spawn-cli.mjs";
+import { classifyClaudeLine, errorEnvelope, noOutputMessage } from "@/lib/ai-cli-failure.mjs";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -323,6 +324,7 @@ export async function POST(req: Request) {
       let buf = "";
       let emitted = false;
       let codexStderr = "";
+      let cliFailure: { message: string; hint: string } | null = null;
       killer = setTimeout(() => {
         terminateChild();
       }, 480_000);
@@ -373,6 +375,14 @@ export async function POST(req: Request) {
             if (obj.type === "stream_event" && obj.event?.type === "content_block_delta") {
               const text = obj.event.delta?.text;
               if (typeof text === "string") emit(text);
+            }
+            // A failed CLI emits no deltas — it emits a synthetic assistant
+            // message and/or an is_error result line. Keep the last REAL
+            // failure text; a generic "exited with <reason>" result must not
+            // overwrite the specific synthetic message that preceded it.
+            const failure = classifyClaudeLine(obj);
+            if (failure && (!cliFailure || !failure.message.startsWith("Claude Code exited with"))) {
+              cliFailure = failure;
             }
           } catch {
             /* partial / non-json line — skip */
@@ -449,14 +459,13 @@ export async function POST(req: Request) {
             }
 
             safeEnqueue(
-              `
-[Codex exited with code ${code ?? "unknown"}${
-                diagnosticsCaptured ? "; diagnostic output captured" : ""
-              }]
-`,
+              errorEnvelope(
+                `Codex exited with code ${code ?? "unknown"}${diagnosticsCaptured ? "; diagnostic output captured" : ""}`,
+                "",
+              ),
             );
           } else if (!emitted) {
-            safeEnqueue("_(no final output from Codex)_");
+            safeEnqueue(errorEnvelope("No final output from Codex", ""));
           }
 
           cleanupChildCwd();
@@ -464,7 +473,12 @@ export async function POST(req: Request) {
           return;
         }
 
-        if (!emitted) safeEnqueue("_(no output — is the CLI authenticated?)_");
+        if (cliFailure) {
+          safeEnqueue(errorEnvelope(cliFailure.message, cliFailure.hint));
+        } else if (!emitted) {
+          const noOut = noOutputMessage(spec.name);
+          safeEnqueue(errorEnvelope(noOut.message, noOut.hint));
+        }
         safeClose();
       });
     },

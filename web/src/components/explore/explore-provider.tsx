@@ -561,6 +561,10 @@ export function ExploreProvider({ children }: { children: React.ReactNode }) {
           setMatchCount(acc.length);
           setAiCost((c) => ({ ...c, candidates: acc.length }));
           setPhase("hunting");
+        } else if (ch.kind === "error") {
+          // A structured <<error:>> envelope from the route (CLI failure) —
+          // becomes the failed-phase message, never trace narration.
+          sawError = ch.hint ? `${ch.message} ${ch.hint}` : ch.message;
         } else {
           setAiTrace((t) => [...t, ch]);
           if (ch.kind === "narration") {
